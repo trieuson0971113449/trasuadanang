@@ -2341,26 +2341,51 @@ function playOrderAlertSound() {
     }
 }
 
-// Push Order to Cloud REST Storage for Cross-Device Synchronization (PubNub Global Cloud Engine)
-const PUBNUB_PUB_KEY = 'pub-c-a7a2a5ed-10fb-40c2-9029-472e9e6df7db';
-const PUBNUB_SUB_KEY = 'sub-c-98eb49c8-0d19-11ea-bf9d-5a2aa57a22a3';
-const PUBNUB_CHANNEL = 'boba_craze_orders_store_2026';
+// Push Order to Cloud REST Storage for Cross-Device Synchronization (JSONBlob Global Cloud Engine)
+const JSONBLOB_CLOUD_ENDPOINT = 'https://jsonblob.com/api/jsonBlob/019feaae-743a-7fab-86a9-ac28d5f361fe';
 
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
-    // 1. Primary Global Cloud Store: PubNub Global REST Network (Instant multi-device relay across Netlify, phones & PCs)
     try {
-        const msgJson = JSON.stringify(order);
-        const msgEncoded = encodeURIComponent(msgJson);
-        const pubUrl = `https://ps.pubnub.com/publish/${PUBNUB_PUB_KEY}/${PUBNUB_SUB_KEY}/0/${PUBNUB_CHANNEL}/0/${msgEncoded}`;
-        await fetch(pubUrl);
-        console.log('⚡ Order published to PubNub Cloud Engine:', order.id);
+        let cloudData = { orders: [], products: [] };
+        try {
+            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
+            if (res.ok) {
+                const parsed = await res.json();
+                if (parsed && Array.isArray(parsed.orders)) {
+                    cloudData.orders = parsed.orders;
+                }
+                if (parsed && Array.isArray(parsed.products)) {
+                    cloudData.products = parsed.products;
+                }
+            }
+        } catch (e) {}
+
+        const existingIdx = cloudData.orders.findIndex(o => o.id === order.id);
+        if (existingIdx !== -1) {
+            cloudData.orders[existingIdx] = order;
+        } else {
+            cloudData.orders.unshift(order);
+        }
+
+        if (cloudData.orders.length > 100) {
+            cloudData.orders = cloudData.orders.slice(0, 100);
+        }
+
+        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(cloudData)
+        });
+        console.log('⚡ Order published to Cloud Engine:', order.id);
     } catch (err) {
-        console.warn('PubNub push warning:', err);
+        console.warn('Cloud order push warning:', err);
     }
 
-    // 2. BroadcastChannel for same-device cross-browser/tab sync
     try {
         if (window.BroadcastChannel) {
             const bc = new BroadcastChannel('boba_cloud_orders_channel');
@@ -2370,61 +2395,57 @@ async function pushOrderToCloud(order) {
     } catch (e) {}
 }
 
+async function pushAllOrdersToCloud() {
+    try {
+        let cloudData = { orders: state.orders, products: state.products };
+        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(cloudData)
+        });
+    } catch (e) {}
+}
+
 // Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices
 async function syncCloudOrders() {
-    let cloudOrders = [];
-
-    // 1. Fetch recent order history from PubNub Global Cloud Channel
     try {
-        const historyUrl = `https://ps.pubnub.com/v2/history/sub-key/${PUBNUB_SUB_KEY}/channel/${PUBNUB_CHANNEL}?count=50`;
-        const response = await fetch(historyUrl);
-        if (response.ok) {
-            const data = await response.json();
-            // PubNub history format: [ [msg1, msg2, ...], startTimetoken, endTimetoken ]
-            if (Array.isArray(data) && Array.isArray(data[0])) {
-                data[0].forEach(msg => {
-                    if (msg && typeof msg === 'object' && msg.id) {
-                        cloudOrders.push(msg);
-                    } else if (typeof msg === 'string') {
-                        try {
-                            const parsed = JSON.parse(msg);
-                            if (parsed && parsed.id) cloudOrders.push(parsed);
-                        } catch (err) {}
-                    }
-                });
-            }
-        }
-    } catch (err) {
-        console.warn('PubNub order sync fetch error:', err);
-    }
+        const response = await fetch(JSONBLOB_CLOUD_ENDPOINT);
+        if (!response.ok) return;
 
-    if (cloudOrders.length === 0) return;
+        const data = await response.json();
+        if (!data || !Array.isArray(data.orders)) return;
 
-    let hasNewOrder = false;
-    cloudOrders.forEach(cloudOrder => {
-        if (cloudOrder && cloudOrder.id) {
-            const localOrderIndex = state.orders.findIndex(o => o.id === cloudOrder.id);
-            if (localOrderIndex === -1) {
-                // Completely new order placed by a customer from another device/phone
-                state.orders.unshift(cloudOrder);
-                hasNewOrder = true;
-
-                // Play doorbell sound chime & show notification
-                playOrderAlertSound();
-                showToast(`🔔 CÓ ĐƠN HÀNG MỚI TỪ KHÁCH HÀNG: #${cloudOrder.id} - ${cloudOrder.customerName} (${formatCurrency(cloudOrder.total)})`);
-            } else {
-                // If cloud order has newer status updated remotely, sync locally
-                if (state.orders[localOrderIndex].status !== cloudOrder.status) {
-                    state.orders[localOrderIndex].status = cloudOrder.status;
+        let hasNewOrder = false;
+        data.orders.forEach(cloudOrder => {
+            if (cloudOrder && cloudOrder.id) {
+                const localOrderIndex = state.orders.findIndex(o => o.id === cloudOrder.id);
+                if (localOrderIndex === -1) {
+                    // Completely new order placed by a customer from another device/phone
+                    state.orders.unshift(cloudOrder);
                     hasNewOrder = true;
+
+                    // Play doorbell sound chime & show notification
+                    playOrderAlertSound();
+                    showToast(`🔔 CÓ ĐƠN HÀNG MỚI TỪ KHÁCH HÀNG: #${cloudOrder.id} - ${cloudOrder.customerName} (${formatCurrency(cloudOrder.total)})`);
+                } else {
+                    // If cloud order has newer status updated remotely, sync locally
+                    if (state.orders[localOrderIndex].status !== cloudOrder.status) {
+                        state.orders[localOrderIndex].status = cloudOrder.status;
+                        hasNewOrder = true;
+                    }
                 }
             }
-        }
-    });
+        });
 
-    if (hasNewOrder) {
-        saveStateToStorage();
-        refreshRealTimeUI();
+        if (hasNewOrder) {
+            saveStateToStorage();
+            refreshRealTimeUI();
+        }
+    } catch (err) {
+        console.warn('Cloud order sync error:', err);
     }
 }
 
@@ -2437,13 +2458,9 @@ async function manualSyncCloudOrders() {
 
 // Start background Cloud Polling loop and BroadcastChannel listener
 function startCloudOrderSync() {
-    // Immediate initial check
     syncCloudOrders();
+    setInterval(syncCloudOrders, 2500);
 
-    // Poll every 3 seconds for instant multi-device order relay
-    setInterval(syncCloudOrders, 3000);
-
-    // Listen for same-device BroadcastChannel messages
     if (window.BroadcastChannel) {
         try {
             const bc = new BroadcastChannel('boba_cloud_orders_channel');
@@ -2467,18 +2484,18 @@ function startCloudOrderSync() {
    CROSS-DEVICE REAL-TIME CLOUD MENU & PRODUCTS SYNC ENGINE
    ========================================================================== */
 
-const PUBNUB_MENU_CHANNEL = 'boba_craze_products_menu_2026';
-
 async function pushProductsToCloud() {
     if (!state.products) return;
     try {
-        const payloadStr = JSON.stringify({
-            type: 'MENU_UPDATE',
-            products: state.products,
-            updatedAt: Date.now()
+        let cloudData = { orders: state.orders, products: state.products };
+        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(cloudData)
         });
-        const url = `https://ps.pubnub.com/publish/${PUBNUB_PUB_KEY}/${PUBNUB_SUB_KEY}/0/${PUBNUB_MENU_CHANNEL}/0/${encodeURIComponent(payloadStr)}`;
-        await fetch(url);
         console.log('⚡ Menu products published to Cloud Relay');
     } catch (e) {
         console.warn('Cloud menu push error:', e);
@@ -2487,34 +2504,21 @@ async function pushProductsToCloud() {
 
 async function syncCloudProducts() {
     try {
-        const historyUrl = `https://ps.pubnub.com/v2/history/sub-key/${PUBNUB_SUB_KEY}/channel/${PUBNUB_MENU_CHANNEL}?count=10`;
-        const res = await fetch(historyUrl);
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && Array.isArray(data[0]) && data[0].length > 0) {
-                const lastMsg = data[0][data[0].length - 1];
-                let cloudProds = null;
-                if (lastMsg && typeof lastMsg === 'object' && Array.isArray(lastMsg.products)) {
-                    cloudProds = lastMsg.products;
-                } else if (typeof lastMsg === 'string') {
-                    try {
-                        const parsed = JSON.parse(lastMsg);
-                        if (parsed && Array.isArray(parsed.products)) cloudProds = parsed.products;
-                    } catch (e) {}
-                }
+        const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
+        if (!res.ok) return;
 
-                if (Array.isArray(cloudProds) && cloudProds.length > 0) {
-                    const currentSig = JSON.stringify(state.products.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
-                    const cloudSig = JSON.stringify(cloudProds.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
+        const data = await res.json();
+        if (data && Array.isArray(data.products) && data.products.length > 0) {
+            const cloudProds = data.products;
+            const currentSig = JSON.stringify(state.products.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
+            const cloudSig = JSON.stringify(cloudProds.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
 
-                    if (currentSig !== cloudSig) {
-                        state.products = cloudProds;
-                        saveStateToStorage();
-                        renderProducts();
-                        if (state.currentRole === 'admin') {
-                            renderAdminProducts();
-                        }
-                    }
+            if (currentSig !== cloudSig) {
+                state.products = cloudProds;
+                saveStateToStorage();
+                renderProducts();
+                if (state.currentRole === 'admin') {
+                    renderAdminProducts();
                 }
             }
         }
