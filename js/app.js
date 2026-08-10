@@ -1567,7 +1567,8 @@ function generateOrderTrackerInnerContent(order) {
 }
 
 // Order Lookup & Tracking Logic for Customers
-function openOrderLookupModal() {
+async function openOrderLookupModal() {
+    await syncCloudOrders();
     const modalBody = document.getElementById('modal-content-container');
 
     modalBody.innerHTML = `
@@ -1594,8 +1595,10 @@ function openOrderLookupModal() {
     document.getElementById('modal-overlay').classList.add('open');
 }
 
-function searchOrdersInModal() {
-    const query = document.getElementById('modal-order-query').value.trim().toLowerCase();
+async function searchOrdersInModal() {
+    await syncCloudOrders();
+    const queryInput = document.getElementById('modal-order-query');
+    const query = queryInput ? queryInput.value.trim().toLowerCase() : '';
     const container = document.getElementById('modal-order-results-list');
     if (!container) return;
 
@@ -1613,7 +1616,8 @@ function searchOrdersInModal() {
     container.innerHTML = renderOrdersListHTML(filtered);
 }
 
-function performOrderLookup() {
+async function performOrderLookup() {
+    await syncCloudOrders();
     const input = document.getElementById('order-lookup-input');
     if (!input) return;
     const query = input.value.trim().toLowerCase();
@@ -2341,47 +2345,69 @@ function playOrderAlertSound() {
     }
 }
 
-// Push Order to Cloud REST Storage for Cross-Device Synchronization (JSONBlob Global Cloud Engine)
+/* ==========================================================================
+   CROSS-DEVICE REAL-TIME CLOUD ENGINE (JSONBlob Atomic Bidirectional Sync)
+   ========================================================================== */
+
 const JSONBLOB_CLOUD_ENDPOINT = 'https://jsonblob.com/api/jsonBlob/019feaae-743a-7fab-86a9-ac28d5f361fe';
 
+// Helper function to merge two order lists safely without losing any orders or status updates
+function mergeOrdersLists(listA, listB) {
+    const map = new Map();
+    (listA || []).forEach(o => {
+        if (o && o.id) map.set(o.id, { ...o });
+    });
+    (listB || []).forEach(o => {
+        if (o && o.id) {
+            if (!map.has(o.id)) {
+                map.set(o.id, { ...o });
+            } else {
+                const existing = map.get(o.id);
+                map.set(o.id, {
+                    ...existing,
+                    ...o,
+                    status: o.status || existing.status
+                });
+            }
+        }
+    });
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+    });
+    return merged;
+}
+
+// Push order to Cloud and safely merge with current cloud data
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
     try {
-        let cloudData = { orders: [], products: [] };
+        let cloudOrders = [];
+        let cloudProducts = state.products;
+
         try {
             const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
             if (res.ok) {
                 const parsed = await res.json();
-                if (parsed && Array.isArray(parsed.orders)) {
-                    cloudData.orders = parsed.orders;
-                }
-                if (parsed && Array.isArray(parsed.products)) {
-                    cloudData.products = parsed.products;
-                }
+                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
+                if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) cloudProducts = parsed.products;
             }
         } catch (e) {}
 
-        const existingIdx = cloudData.orders.findIndex(o => o.id === order.id);
-        if (existingIdx !== -1) {
-            cloudData.orders[existingIdx] = order;
-        } else {
-            cloudData.orders.unshift(order);
-        }
-
-        if (cloudData.orders.length > 100) {
-            cloudData.orders = cloudData.orders.slice(0, 100);
-        }
-
+        const mergedOrders = mergeOrdersLists(cloudOrders, [...state.orders, order]);
+        
         await fetch(JSONBLOB_CLOUD_ENDPOINT, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(cloudData)
+            body: JSON.stringify({ orders: mergedOrders, products: cloudProducts })
         });
-        console.log('⚡ Order published to Cloud Engine:', order.id);
+        console.log('⚡ Order published & merged to Cloud Engine:', order.id);
     } catch (err) {
         console.warn('Cloud order push warning:', err);
     }
@@ -2397,19 +2423,29 @@ async function pushOrderToCloud(order) {
 
 async function pushAllOrdersToCloud() {
     try {
-        let cloudData = { orders: state.orders, products: state.products };
+        let cloudOrders = [];
+        try {
+            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
+            if (res.ok) {
+                const parsed = await res.json();
+                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
+            }
+        } catch (e) {}
+
+        const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
+
         await fetch(JSONBLOB_CLOUD_ENDPOINT, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(cloudData)
+            body: JSON.stringify({ orders: mergedOrders, products: state.products })
         });
     } catch (e) {}
 }
 
-// Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices
+// Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices & Sync Status
 async function syncCloudOrders() {
     try {
         const response = await fetch(JSONBLOB_CLOUD_ENDPOINT);
@@ -2419,30 +2455,37 @@ async function syncCloudOrders() {
         if (!data || !Array.isArray(data.orders)) return;
 
         let hasNewOrder = false;
+        let statusChanged = false;
+
         data.orders.forEach(cloudOrder => {
             if (cloudOrder && cloudOrder.id) {
                 const localOrderIndex = state.orders.findIndex(o => o.id === cloudOrder.id);
                 if (localOrderIndex === -1) {
-                    // Completely new order placed by a customer from another device/phone
                     state.orders.unshift(cloudOrder);
                     hasNewOrder = true;
 
-                    // Play doorbell sound chime & show notification
-                    playOrderAlertSound();
-                    showToast(`🔔 CÓ ĐƠN HÀNG MỚI TỪ KHÁCH HÀNG: #${cloudOrder.id} - ${cloudOrder.customerName} (${formatCurrency(cloudOrder.total)})`);
+                    if (state.currentRole === 'admin') {
+                        playOrderAlertSound();
+                        showToast(`🔔 CÓ ĐƠN HÀNG MỚI TỪ KHÁCH HÀNG: #${cloudOrder.id} - ${cloudOrder.customerName} (${formatCurrency(cloudOrder.total)})`);
+                    }
                 } else {
-                    // If cloud order has newer status updated remotely, sync locally
                     if (state.orders[localOrderIndex].status !== cloudOrder.status) {
                         state.orders[localOrderIndex].status = cloudOrder.status;
-                        hasNewOrder = true;
+                        statusChanged = true;
                     }
                 }
             }
         });
 
-        if (hasNewOrder) {
+        const missingInCloud = state.orders.some(o => !data.orders.some(co => co.id === o.id));
+
+        if (hasNewOrder || statusChanged) {
             saveStateToStorage();
             refreshRealTimeUI();
+        }
+
+        if (missingInCloud) {
+            pushAllOrdersToCloud();
         }
     } catch (err) {
         console.warn('Cloud order sync error:', err);
@@ -2453,13 +2496,14 @@ async function syncCloudOrders() {
 async function manualSyncCloudOrders() {
     showToast('🔄 Đang đồng bộ đơn hàng từ Cloud...');
     await syncCloudOrders();
-    showToast('✅ Đã tải và cập nhật xong đơn hàng từ Cloud!');
+    await pushAllOrdersToCloud();
+    showToast('✅ Đã đồng bộ 2 chiều thành công đơn hàng giữa máy tính và điện thoại!');
 }
 
 // Start background Cloud Polling loop and BroadcastChannel listener
 function startCloudOrderSync() {
     syncCloudOrders();
-    setInterval(syncCloudOrders, 2500);
+    setInterval(syncCloudOrders, 2000);
 
     if (window.BroadcastChannel) {
         try {
@@ -2471,8 +2515,10 @@ function startCloudOrderSync() {
                         state.orders.unshift(newOrd);
                         saveStateToStorage();
                         refreshRealTimeUI();
-                        playOrderAlertSound();
-                        showToast(`🔔 CÓ ĐƠN HÀNG MỚI: #${newOrd.id} từ ${newOrd.customerName}`);
+                        if (state.currentRole === 'admin') {
+                            playOrderAlertSound();
+                            showToast(`🔔 CÓ ĐƠN HÀNG MỚI: #${newOrd.id} từ ${newOrd.customerName}`);
+                        }
                     }
                 }
             };
@@ -2487,14 +2533,24 @@ function startCloudOrderSync() {
 async function pushProductsToCloud() {
     if (!state.products) return;
     try {
-        let cloudData = { orders: state.orders, products: state.products };
+        let cloudOrders = [];
+        try {
+            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
+            if (res.ok) {
+                const parsed = await res.json();
+                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
+            }
+        } catch (e) {}
+
+        const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
+
         await fetch(JSONBLOB_CLOUD_ENDPOINT, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(cloudData)
+            body: JSON.stringify({ orders: mergedOrders, products: state.products })
         });
         console.log('⚡ Menu products published to Cloud Relay');
     } catch (e) {
@@ -2527,7 +2583,7 @@ async function syncCloudProducts() {
 
 function startCloudProductSync() {
     syncCloudProducts();
-    setInterval(syncCloudProducts, 2500);
+    setInterval(syncCloudProducts, 2000);
 }
 
 // Manual Sync Stock To Customers for Admin
