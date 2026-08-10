@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boba Craze - Hệ Thống Trà Sữa Premium & Quản Lý Cửa Hàng</title>
+    <meta name="description" content="Trà sữa thơm ngon đậm vị, trân châu hoàng kim dai dẻo chuẩn vị Đài Loan. Đặt hàng giao tận nơi nhanh chóng!">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=2.0.1">
+</head>
+<body>
+
+    <!-- ==========================================================================
+         CUSTOMER INTERFACE VIEW
+         ========================================================================== -->
+    <div id="customer-view">
+
+        <!-- Navigation Bar -->
+        <nav class="cust-navbar">
+            <div class="container cust-navbar-inner">
+                <a href="#" class="brand-logo">
+                    <i class="fa-solid fa-mug-hot"></i>
+                    <span>Boba Craze</span>
+                </a>
+
+                <ul class="cust-nav-links">
+                    <li><a href="#home" class="active">Trang Chủ</a></li>
+                    <li><a href="#menu">Thực Đơn</a></li>
+                    <li><a href="#bestseller">Best Seller</a></li>
+                    <li><a href="javascript:void(0)" onclick="openOrderLookupModal()"><i class="fa-solid fa-truck-fast"></i> Theo Dõi Đơn</a></li>
+                    <li><a href="#reviews">Đánh Giá</a></li>
+                </ul>
+
+                <div class="nav-actions">
+                    <button class="theme-toggle-btn" id="theme-toggle" title="Đổi giao diện Sáng / Tối" style="background: var(--light-bg); color: var(--text-main); border: 1px solid var(--border-color);">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+
+                    <button class="btn-secondary" onclick="openOrderLookupModal()" title="Tra cứu & theo dõi đơn hàng" style="padding: 10px 16px; border-radius: var(--radius-full);">
+                        <i class="fa-solid fa-receipt" style="color: var(--primary);"></i>
+                        <span>Đơn Hàng Của Tôi</span>
+                    </button>
+
+                    <button class="btn-cart" id="cart-btn">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <span>Giỏ Hàng</span>
+                        <span class="cart-count" id="cart-badge">0</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero-section" id="home">
+            <div class="container hero-grid">
+                <div class="hero-content">
+                    <span class="badge badge-gold" style="margin-bottom: 14px;"><i class="fa-solid fa-crown"></i> Thương Hiệu Trà Sữa Đậm Vị #1</span>
+                    <h1>Thưởng Thức Vị Trà <span>Đậm Đà</span> & Trân Châu Nóng Dẻo</h1>
+                    <p>Nguyên liệu lá trà cổ thụ nguyên chất kết hợp cùng sữa tươi thanh trùng và trân châu thủ công nấu mới mỗi 2 giờ.</p>
+                    <div class="hero-buttons">
+                        <a href="#menu" class="btn-primary"><i class="fa-solid fa-mug-saucer"></i> Đặt Món Ngay</a>
+                    </div>
+                </div>
+                <div class="hero-img-wrapper">
+                    <img src="https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=800&q=80" alt="Boba Milk Tea Hero">
+                    <div class="hero-badge-float">
+                        <div class="hero-badge-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <div>
+                            <strong style="display:block; font-size:0.9rem;">Giao Siêu Tốc 20P</strong>
+                            <small style="color:var(--text-muted);">Miễn phí ship đơn từ 60k</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Category & Search Bar -->
+        <section class="category-section" id="menu">
+            <div class="container">
+                <div class="search-filter-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="search-input" placeholder="Tìm kiếm món trà sữa, trà trái cây, topping..." autocomplete="off">
+                        <button type="button" id="clear-search-btn" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; display: none;"><i class="fa-solid fa-xmark"></i></button>
+                        <div id="search-suggestions-dropdown" class="search-suggestions-panel"></div>
+                    </div>
+                    <div class="categories-pills" id="category-pills-container">
+                        <!-- Category pills rendered dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Product Grid Section -->
+        <section class="products-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">Thực Đơn Đồ Uống Khuyên Dùng</h2>
+                    <span style="color:var(--text-muted); font-size:0.9rem;">Tùy chỉnh đường, đá & topping theo sở thích</span>
+                </div>
+                <div class="products-grid" id="products-grid-container">
+                    <!-- Product cards rendered dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Order Lookup & Tracking Banner Section -->
+        <section class="order-tracking-section" id="track-order" style="padding: 40px 0; background: linear-gradient(135deg, #fff8e7 0%, #fbf0e8 100%); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+            <div class="container" style="max-width: 900px; text-align: center;">
+                <span class="badge badge-gold" style="margin-bottom: 10px;"><i class="fa-solid fa-truck-fast"></i> Tra Cứu Trực Tuyến</span>
+                <h2 style="font-size: 2rem; color: var(--primary); margin-bottom: 10px;">Theo Dõi Trạng Thái Đơn Hàng</h2>
+                <p style="color: var(--text-muted); margin-bottom: 24px;">Nhập <strong>Số Điện Thoại</strong> hoặc <strong>Mã Đơn Hàng (VD: ORD-9821)</strong> để xem tiến trình pha chế & giao hàng thời gian thực!</p>
+
+                <div style="display: flex; gap: 12px; max-width: 580px; margin: 0 auto 20px;">
+                    <div class="search-box" style="flex: 1;">
+                        <i class="fa-solid fa-receipt"></i>
+                        <input type="text" id="order-lookup-input" placeholder="Nhập Số Điện Thoại hoặc Mã Đơn Hàng...">
+                    </div>
+                    <button class="btn-primary" onclick="performOrderLookup()"><i class="fa-solid fa-magnifying-glass"></i> Tra Cứu</button>
+                </div>
+
+                <div id="order-lookup-result-box" style="margin-top: 20px; text-align: left;">
+                    <!-- Lookup results rendered dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Customer Reviews Section -->
+        <section class="reviews-section" id="reviews">
+            <div class="container">
+                <div class="section-header" style="text-align: center; display: block; margin-bottom: 36px;">
+                    <span class="badge badge-gold" style="margin-bottom: 8px;">Khách Hàng Nói Gì</span>
+                    <h2 class="section-title">Đánh Giá Từ Tín Đồ Trà Sữa</h2>
+                </div>
+                <div class="reviews-grid" id="reviews-grid-container">
+                    <!-- Reviews rendered dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <div class="container footer-grid">
+                <div>
+                    <a href="#" class="brand-logo" style="color:#fff; margin-bottom: 14px;">
+                        <i class="fa-solid fa-mug-hot" style="color:var(--secondary);"></i>
+                        <span>Boba Craze</span>
+                    </a>
+                    <p style="font-size: 0.9rem; line-height: 1.6;">Thương hiệu trà sữa tiên phong nguyên liệu sạch, mang lại hương vị thơm ngon tinh tế nhất cho khách hàng.</p>
+                </div>
+                <div>
+                    <h4>Danh Mục</h4>
+                    <ul class="footer-links">
+                        <li><a href="#menu">Trà Sữa Đậm Vị</a></li>
+                        <li><a href="#menu">Trà Trái Cây Fresh</a></li>
+                        <li><a href="#menu">Macchiato Cream</a></li>
+                        <li><a href="#menu">Toppings Ăn Kèm</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Hỗ Trợ & Hợp Tác</h4>
+                    <ul class="footer-links">
+                        <li><a href="javascript:void(0)" onclick="openGuideModal()"><i class="fa-solid fa-circle-question"></i> Hướng dẫn đặt hàng</a></li>
+                        <li><a href="javascript:void(0)" onclick="openShippingPolicyModal()"><i class="fa-solid fa-truck"></i> Chính sách giao hàng</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Cửa Hàng</h4>
+                    <p style="font-size:0.88rem; margin-bottom: 8px;"><i class="fa-solid fa-location-dot" style="color:var(--secondary);"></i> 1059 Tôn Đản, P. Cẩm Lệ, TP. Đà Nẵng</p>
+                    <p style="font-size:0.88rem; margin-bottom: 8px;"><i class="fa-solid fa-phone" style="color:var(--secondary);"></i> Hotline: 0888 384 475</p>
+                    <p style="font-size:0.88rem;"><i class="fa-solid fa-clock" style="color:var(--secondary);"></i> Mở cửa: 08:00 - 22:30 Hàng ngày</p>
+                </div>
+            </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; text-align: center; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span>&copy; 2026 Boba Craze Store. All rights reserved. Designed for Premium Tea Experience.</span>
+                <a href="javascript:void(0)" onclick="openAdminLoginModal()" style="color:inherit; opacity:0.35; text-decoration:none; font-size:0.78rem;" title="Đăng nhập dành cho Quản trị viên"><i class="fa-solid fa-lock"></i> Đăng Nhập Quản Trị</a>
+            </div>
+        </footer>
+
+    </div>
+
+    </div>
+
+
+    <!-- ==========================================================================
+         ADMIN MANAGEMENT DASHBOARD VIEW
+         ========================================================================== -->
+    <div id="admin-view" class="admin-layout" style="display: none;">
+
+        <!-- Admin Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div style="padding: 0 10px 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 16px;">
+                <strong style="display:block; font-size:1.1rem; color:var(--primary);"><i class="fa-solid fa-gauge"></i> Admin Dashboard</strong>
+                <small style="color:var(--text-muted);">Quản trị cửa hàng Trà Sữa</small>
+            </div>
+
+            <ul class="admin-menu">
+                <li class="admin-menu-item">
+                    <a href="#" class="active" data-section="overview">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Tổng Quan & Thống Kê</span>
+                    </a>
+                </li>
+                <li class="admin-menu-item">
+                    <a href="#" data-section="orders">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Quản Lý Đơn Hàng</span>
+                    </a>
+                </li>
+                <li class="admin-menu-item">
+                    <a href="#" data-section="menu">
+                        <i class="fa-solid fa-mug-saucer"></i>
+                        <span>Quản Lý Thực Đơn</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); display:flex; flex-direction:column; gap:10px;">
+                <button class="btn-secondary" style="width: 100%; text-align: center; justify-content: center;" onclick="setRole('customer')">
+                    <i class="fa-solid fa-arrow-left"></i> Xem Trang Khách Hàng
+                </button>
+                <button class="btn-secondary" style="width: 100%; text-align: center; justify-content: center; color: var(--accent-red); border-color: rgba(231,76,60,0.3);" onclick="adminLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất Quản Trị
+                </button>
+            </div>
+        </aside>
+
+        <!-- Admin Main Content Area -->
+        <main class="admin-content">
+
+            <!-- Overview Section -->
+            <section id="admin-sec-overview" class="admin-tab-content">
+                <div class="admin-header-title">
+                    <span>Báo Cáo Tổng Quan Cửa Hàng</span>
+                    <span style="font-size:0.9rem; color:var(--text-muted); font-weight:400;">Cập nhật thời gian thực</span>
+                </div>
+
+                <!-- Stats Grid Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Tổng Doanh Thu</div>
+                            <div class="stat-val" id="metric-total-revenue">0đ</div>
+                        </div>
+                        <div class="stat-icon-box orange"><i class="fa-solid fa-coins"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Tổng Số Đơn Hàng</div>
+                            <div class="stat-val" id="metric-total-orders">0</div>
+                        </div>
+                        <div class="stat-icon-box green"><i class="fa-solid fa-bag-shopping"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Đơn Hàng Chờ Xác Nhận</div>
+                            <div class="stat-val" id="metric-pending-orders">0</div>
+                        </div>
+                        <div class="stat-icon-box blue"><i class="fa-solid fa-clock"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Món Đồ Uống Đang Bán</div>
+                            <div class="stat-val" id="metric-total-products">0</div>
+                        </div>
+                        <div class="stat-icon-box purple"><i class="fa-solid fa-mug-hot"></i></div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-card-header"><i class="fa-solid fa-chart-column"></i> Doanh Thu 7 Ngày Gần Nhất</div>
+                        <canvas id="adminRevenueChart" height="200"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-header"><i class="fa-solid fa-chart-pie"></i> Cơ Cấu Doanh Số Theo Danh Mục</div>
+                        <canvas id="adminCategoryChart" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Order Management Section -->
+            <section id="admin-sec-orders" class="admin-tab-content" style="display: none;">
+                <div class="admin-header-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span>Quản Lý Đơn Hàng</span>
+                        <span style="font-size:0.85rem; color:var(--text-muted); font-weight:400; display:block;">Thay đổi trạng thái để cập nhật trực tiếp cho khách hàng</span>
+                    </div>
+                    <button class="btn-primary" onclick="manualSyncCloudOrders()" style="padding: 8px 16px; font-size: 0.85rem; background: #0068ff; border-color: #0068ff;" title="Bấm để tải ngay đơn hàng mới nhất từ khách hàng trên Cloud">
+                        <i class="fa-solid fa-rotate"></i> Đồng Bộ Đơn Từ Cloud
+                    </button>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã Đơn</th>
+                                    <th>Khách Hàng</th>
+                                    <th>Chi Tiết Sản Phẩm</th>
+                                    <th>Tổng Tiền</th>
+                                    <th>Thanh Toán</th>
+                                    <th>Trạng Thái Xử Lý</th>
+                                    <th>Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-orders-table-body">
+                                <!-- Order rows rendered dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Menu Management Section -->
+            <section id="admin-sec-menu" class="admin-tab-content" style="display: none;">
+                <div class="admin-header-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <span>Quản Lý Thực Đơn Trà Sữa</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-primary" onclick="manualSyncStockToCustomers()" style="background: #28a745; border-color: #28a745; font-size: 0.85rem;" title="Bấm để đồng bộ ngay số lượng tồn kho mới nhất tới điện thoại/máy tính của tất cả khách hàng">
+                            <i class="fa-solid fa-rotate"></i> Đồng Bộ Kho Cho Khách Hàng
+                        </button>
+                        <button class="btn-primary" onclick="openAddProductModal()"><i class="fa-solid fa-plus"></i> Thêm Món Mới</button>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Hình Ảnh</th>
+                                    <th>Tên Đồ Uống</th>
+                                    <th>Danh Mục</th>
+                                    <th>Giá Bán</th>
+                                    <th>Số Lượng Kho</th>
+                                    <th>Nhãn Best Seller</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-products-table-body">
+                                <!-- Product rows rendered dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+
+    <!-- ==========================================================================
+         MODALS & DRAWERS
+         ========================================================================== -->
+
+    <!-- Dynamic Reusable Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content" id="modal-content-container">
+            <!-- Modal inner html injected via JavaScript -->
+        </div>
+    </div>
+
+    <!-- Shopping Cart Slide-over Drawer -->
+    <div class="cart-drawer" id="cart-drawer">
+        <div class="cart-drawer-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-basket-shopping" style="color:var(--primary); font-size: 1.2rem;"></i>
+                <strong style="font-size: 1.1rem;">Giỏ Hàng Của Bạn</strong>
+            </div>
+            <button class="modal-close-btn" id="close-cart-btn" style="position: static;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="cart-drawer-body" id="cart-drawer-items">
+            <!-- Cart items rendered dynamically -->
+        </div>
+
+        <div class="cart-drawer-footer">
+            <div class="voucher-input-group">
+                <input type="text" id="voucher-code-input" placeholder="Mã giảm giá (VD: WELCOME10)">
+                <button class="btn-secondary" id="apply-voucher-btn" style="padding: 8px 14px; font-size:0.85rem;">Áp dụng</button>
+            </div>
+
+            <div class="cart-row"><span>Tạm tính:</span><span id="cart-subtotal">0đ</span></div>
+            <div class="cart-row"><span>Phí giao hàng:</span><span id="cart-shipping">0đ</span></div>
+            <div class="cart-row"><span>Giảm giá:</span><span id="cart-discount" style="color:var(--accent-red);">0đ</span></div>
+            <div class="cart-row total"><span>Tổng thanh toán:</span><span id="cart-total">0đ</span></div>
+
+            <button class="btn-primary" style="width: 100%; justify-content: center; margin-top: 16px;" onclick="openCheckoutModal()">
+                Tiến Hành Thanh Toán <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         FLOATING ADMIN CONTACT WIDGET (ZALO, MESSENGER, CALL)
+         ========================================================================== -->
+    <div class="floating-contact-widget" id="floating-contact-widget">
+        <a href="tel:0888384475" class="contact-btn-item contact-btn-call" title="Gọi điện trực tiếp cho Admin (0888 384 475)">
+            <i class="fa-solid fa-phone-volume"></i>
+            <span class="contact-btn-tooltip">Hotline: 0888 384 475</span>
+        </a>
+        <a href="https://zalo.me/0888384475" target="_blank" rel="noopener noreferrer" class="contact-btn-item contact-btn-zalo" title="Chat Zalo với Admin (0888 384 475)">
+            <span class="zalo-icon-text">Zalo</span>
+            <span class="contact-btn-tooltip">Chat Zalo Admin</span>
+        </a>
+        <a href="https://m.me/bobacraze" target="_blank" rel="noopener noreferrer" class="contact-btn-item contact-btn-messenger" title="Nhắn tin qua Messenger">
+            <i class="fa-brands fa-facebook-messenger"></i>
+            <span class="contact-btn-tooltip">Messenger Fanpage</span>
+        </a>
+    </div>
+
+    <!-- Firebase Authentication SDK (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <!-- Application JavaScript Scripts -->
+    <script src="js/data.js?v=2.0.2"></script>
+    <script src="js/app.js?v=2.0.2"></script>
+</body>
+</html>
