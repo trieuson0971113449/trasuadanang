@@ -197,16 +197,16 @@ function renderTableBadgeUI() {
             badgeEl.innerHTML = `
                 <div class="table-badge-pill table-active-pill" onclick="openSelectTableModal()" title="Nhấn để đổi số bàn hoặc chọn Mang Đi">
                     <i class="fa-solid fa-chair"></i>
-                    <span>Bạn đang gọi món tại: <strong>${state.tableNumber}</strong></span>
-                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:4px; opacity:0.8;"></i>
+                    <span><span class="desktop-badge-text">Vị trí: </span><strong>${state.tableNumber}</strong></span>
+                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:2px; opacity:0.8;"></i>
                 </div>
             `;
         } else {
             badgeEl.innerHTML = `
                 <div class="table-badge-pill table-takeaway-pill" onclick="openSelectTableModal()" title="Nhấn để chọn số bàn nếu ăn tại quán">
                     <i class="fa-solid fa-bag-shopping"></i>
-                    <span>Loại đơn: <strong>Mang đi</strong></span>
-                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:4px; opacity:0.8;"></i>
+                    <span><span class="desktop-badge-text">Loại đơn: </span><strong>Mang đi</strong></span>
+                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:2px; opacity:0.8;"></i>
                 </div>
             `;
         }
