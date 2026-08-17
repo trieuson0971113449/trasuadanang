@@ -183,7 +183,7 @@ const DEFAULT_ORDERS = [
     {
         id: 'ORD-9821',
         customerName: 'Nguyễn Văn Anh',
-        phone: '0888 384 475',
+        phone: '0889 045 686',
         address: '1059 Tôn Đản, P. Cẩm Lệ, TP. Đà Nẵng',
         items: [
             {
@@ -200,7 +200,10 @@ const DEFAULT_ORDERS = [
         shippingFee: 0,
         discount: 10800,
         total: 97200,
-        paymentMethod: 'MoMo QR',
+        tableNumber: 'Bàn 5',
+        paymentMethod: 'Thanh toán ngay (Chuyển khoản VietQR)',
+        paymentType: 'online',
+        paymentStatus: 'da_chuyen_khoan',
         status: 'completed', // pending, preparing, shipping, completed, cancelled
         createdAt: '2026-08-07 14:05:00',
         note: 'Giao trước 9h sáng giúp mình'
@@ -234,7 +237,10 @@ const DEFAULT_ORDERS = [
         shippingFee: 0,
         discount: 15000,
         total: 98000,
-        paymentMethod: 'Tiền mặt (COD)',
+        tableNumber: 'Bàn 2',
+        paymentMethod: 'Thanh toán sau (Tiền mặt / Tại quầy)',
+        paymentType: 'cod',
+        paymentStatus: 'chua_thanh_toan',
         status: 'preparing',
         createdAt: '2026-08-07 14:18:00',
         note: 'Cho ống hút to'
@@ -259,7 +265,10 @@ const DEFAULT_ORDERS = [
         shippingFee: 15000,
         discount: 20000,
         total: 226000,
-        paymentMethod: 'Chuyển khoản Banking',
+        tableNumber: 'Mang đi',
+        paymentMethod: 'Thanh toán ngay (Chuyển khoản VietQR)',
+        paymentType: 'online',
+        paymentStatus: 'da_chuyen_khoan',
         status: 'pending',
         createdAt: '2026-08-07 08:50:00',
         note: ''

@@ -5,6 +5,8 @@
 // Global State
 let state = {
     currentRole: 'customer', // 'customer' | 'admin'
+    tableNumber: 'Mang đi', // Default or parsed from URL parameter e.g. ?ban=5
+    isTakeaway: true,
     currentCategory: 'all',
     searchQuery: '',
     products: [],
@@ -30,15 +32,50 @@ let state = {
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
+    removeMessengerElements();
     loadStateFromStorage();
+    initTableNumberFromURL();
     initEventListeners();
+    initMobileMenu();
     renderApp();
-    startCloudOrderSync(); // Start multi-device real-time cloud order listener
-    startCloudProductSync(); // Start multi-device real-time cloud menu listener
+    startCloudOrderSync();
+    startCloudProductSync();
     if (window.location.hash === '#admin') {
         setRole('admin');
     }
 });
+
+function removeMessengerElements() {
+    document.querySelectorAll('.contact-btn-messenger, a[href*="m.me"], a[href*="messenger"]').forEach(el => el.remove());
+}
+
+// Mobile Hamburger Menu
+function initMobileMenu() {
+    const btn = document.getElementById('mobile-menu-btn');
+    const navLinks = document.getElementById('cust-nav-links');
+    if (!btn || !navLinks) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navLinks.classList.toggle('open');
+        btn.innerHTML = navLinks.classList.contains('open')
+            ? '<i class="fa-solid fa-xmark"></i>'
+            : '<i class="fa-solid fa-bars"></i>';
+    });
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!btn.contains(e.target) && !navLinks.contains(e.target)) {
+            navLinks.classList.remove('open');
+            btn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+        }
+    });
+}
+
+function closeMobileMenu() {
+    const navLinks = document.getElementById('cust-nav-links');
+    const btn = document.getElementById('mobile-menu-btn');
+    if (navLinks) navLinks.classList.remove('open');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+}
 
 window.addEventListener('hashchange', () => {
     if (window.location.hash === '#admin') {
@@ -50,20 +87,43 @@ window.addEventListener('hashchange', () => {
 
 // Load State from LocalStorage or Defaults
 function loadStateFromStorage() {
-    state.products = JSON.parse(localStorage.getItem('boba_products')) || DEFAULT_PRODUCTS;
+    let storedProds = null;
+    try {
+        storedProds = JSON.parse(localStorage.getItem('boba_products'));
+    } catch(e){}
+
+    if (Array.isArray(storedProds) && storedProds.length > 0) {
+        state.products = storedProds;
+    } else {
+        state.products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+    }
+
     state.categories = DEFAULT_CATEGORIES;
-    state.toppings = JSON.parse(localStorage.getItem('boba_toppings')) || DEFAULT_TOPPINGS;
+
+    let storedToppings = null;
+    try { storedToppings = JSON.parse(localStorage.getItem('boba_toppings')); } catch(e){}
+    state.toppings = (Array.isArray(storedToppings) && storedToppings.length > 0) ? storedToppings : DEFAULT_TOPPINGS;
+
     state.sizes = DEFAULT_SIZES;
     state.sugarLevels = DEFAULT_SUGAR_LEVELS;
     state.iceLevels = DEFAULT_ICE_LEVELS;
-    state.cart = JSON.parse(localStorage.getItem('boba_cart')) || [];
-    state.orders = JSON.parse(localStorage.getItem('boba_orders')) || DEFAULT_ORDERS;
-    state.reviews = JSON.parse(localStorage.getItem('boba_reviews')) || DEFAULT_REVIEWS;
 
-    // Ensure every product has a valid numeric stock attribute & merge missing default products (like Cafe Muoi)
+    let storedCart = null;
+    try { storedCart = JSON.parse(localStorage.getItem('boba_cart')); } catch(e){}
+    state.cart = Array.isArray(storedCart) ? storedCart : [];
+
+    let storedOrders = null;
+    try { storedOrders = JSON.parse(localStorage.getItem('boba_orders')); } catch(e){}
+    state.orders = (Array.isArray(storedOrders) && storedOrders.length > 0) ? storedOrders : DEFAULT_ORDERS;
+
+    let storedReviews = null;
+    try { storedReviews = JSON.parse(localStorage.getItem('boba_reviews')); } catch(e){}
+    state.reviews = (Array.isArray(storedReviews) && storedReviews.length > 0) ? storedReviews : DEFAULT_REVIEWS;
+
+    // Ensure every default product exists in state.products
     DEFAULT_PRODUCTS.forEach(defProd => {
         if (!state.products.some(p => p.id === defProd.id || p.name === defProd.name)) {
-            state.products.push(defProd);
+            state.products.push(JSON.parse(JSON.stringify(defProd)));
         }
     });
 
@@ -73,20 +133,8 @@ function loadStateFromStorage() {
         }
     });
 
-    // Convert old UTC timestamps (07:xx:xx) stored in localStorage to local Vietnam time (14:xx:xx)
-    if (state.orders && state.orders.length > 0) {
-        state.orders.forEach(o => {
-            if (o.createdAt) {
-                o.createdAt = formatOrderDateTime(o.createdAt);
-            }
-        });
-        saveStateToStorage();
-    }
-
     // Save defaults to storage if empty
-    if (!localStorage.getItem('boba_products')) {
-        saveStateToStorage();
-    }
+    saveStateToStorage();
 }
 
 function saveStateToStorage() {
@@ -98,6 +146,145 @@ function saveStateToStorage() {
     
     // Dispatch custom event for instant local real-time sync
     window.dispatchEvent(new Event('boba_orders_updated'));
+}
+
+/* ==========================================================================
+   REQUIREMENT 1: AUTOMATIC TABLE NUMBER RECOGNITION & SELECTION SYSTEM
+   ========================================================================== */
+function initTableNumberFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableParam = urlParams.get('ban') || urlParams.get('table') || urlParams.get('soban') || urlParams.get('b');
+
+    if (tableParam !== null && tableParam !== undefined && tableParam.trim() !== '') {
+        let cleanVal = decodeURIComponent(tableParam).trim();
+        if (/^\d+$/.test(cleanVal)) {
+            state.tableNumber = `Bàn ${parseInt(cleanVal, 10)}`;
+        } else if (/^bàn\s*\d+$/i.test(cleanVal) || /^ban\s*\d+$/i.test(cleanVal)) {
+            const numStr = cleanVal.replace(/\D/g, '');
+            state.tableNumber = `Bàn ${numStr}`;
+        } else {
+            state.tableNumber = cleanVal;
+        }
+        state.isTakeaway = false;
+        localStorage.setItem('boba_table_number', state.tableNumber);
+    } else {
+        const savedTable = localStorage.getItem('boba_table_number');
+        if (savedTable) {
+            state.tableNumber = savedTable;
+            state.isTakeaway = savedTable === 'Mang đi';
+        } else {
+            state.tableNumber = 'Mang đi';
+            state.isTakeaway = true;
+        }
+    }
+
+    renderTableBadgeUI();
+}
+
+function renderTableBadgeUI() {
+    let badgeEl = document.getElementById('header-table-badge');
+    if (!badgeEl) {
+        const navActions = document.querySelector('.nav-actions');
+        if (navActions) {
+            badgeEl = document.createElement('div');
+            badgeEl.id = 'header-table-badge';
+            navActions.insertBefore(badgeEl, navActions.firstChild);
+        }
+    }
+
+    if (badgeEl) {
+        if (state.tableNumber && state.tableNumber !== 'Mang đi') {
+            badgeEl.innerHTML = `
+                <div class="table-badge-pill table-active-pill" onclick="openSelectTableModal()" title="Nhấn để đổi số bàn hoặc chọn Mang Đi">
+                    <i class="fa-solid fa-chair"></i>
+                    <span>Bạn đang gọi món tại: <strong>${state.tableNumber}</strong></span>
+                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:4px; opacity:0.8;"></i>
+                </div>
+            `;
+        } else {
+            badgeEl.innerHTML = `
+                <div class="table-badge-pill table-takeaway-pill" onclick="openSelectTableModal()" title="Nhấn để chọn số bàn nếu ăn tại quán">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span>Loại đơn: <strong>Mang đi</strong></span>
+                    <i class="fa-solid fa-pen-to-square" style="font-size:0.75rem; margin-left:4px; opacity:0.8;"></i>
+                </div>
+            `;
+        }
+    }
+}
+
+function openSelectTableModal() {
+    const modalBody = document.getElementById('modal-content-container');
+    const currentIsTable = state.tableNumber !== 'Mang đi';
+    modalBody.innerHTML = `
+        <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-body" style="padding: 24px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 56px; height: 56px; background: rgba(110, 59, 33, 0.12); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.6rem;">
+                    <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <h2 class="modal-item-title" style="margin-bottom: 4px;">Xác Nhận Số Bàn & Vị Trí Gọi Món</h2>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Hệ thống tự động đọc thông tin số bàn từ đường link URL mã QR tại bàn.</p>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; justify-content: center;">
+                <button type="button" class="opt-pill ${currentIsTable ? 'active' : ''}" onclick="setTableSelectionType('table')" style="padding: 10px 18px; font-weight:700;">
+                    <i class="fa-solid fa-chair"></i> Ăn Tại Quán (Tại Bàn)
+                </button>
+                <button type="button" class="opt-pill ${!currentIsTable ? 'active' : ''}" onclick="setTableSelectionType('takeaway')" style="padding: 10px 18px; font-weight:700;">
+                    <i class="fa-solid fa-bag-shopping"></i> Mua Mang Đi
+                </button>
+            </div>
+
+            <div id="table-number-picker-box" style="display: ${currentIsTable ? 'block' : 'none'}; background: var(--light-bg); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <label style="font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 12px; color: var(--primary);">
+                    <i class="fa-solid fa-location-crosshairs"></i> Chọn vị trí bàn bạn đang ngồi (*):
+                </label>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                    ${Array.from({length: 15}, (_, i) => i + 1).map(num => `
+                        <button type="button" class="btn-table-number ${state.tableNumber === 'Bàn ' + num ? 'selected' : ''}" onclick="selectExactTableNumber(${num})">
+                            Bàn ${num}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="confirmTableSelection()">
+                    <i class="fa-solid fa-circle-check"></i> Xác Nhận Vị Trí (${state.tableNumber})
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById('modal-overlay').classList.add('open');
+}
+
+function setTableSelectionType(type) {
+    if (type === 'takeaway') {
+        state.tableNumber = 'Mang đi';
+        state.isTakeaway = true;
+        confirmTableSelection();
+    } else {
+        if (state.tableNumber === 'Mang đi') {
+            state.tableNumber = 'Bàn 1';
+        }
+        state.isTakeaway = false;
+        openSelectTableModal();
+    }
+}
+
+function selectExactTableNumber(num) {
+    state.tableNumber = `Bàn ${num}`;
+    state.isTakeaway = false;
+    openSelectTableModal();
+}
+
+function confirmTableSelection() {
+    localStorage.setItem('boba_table_number', state.tableNumber);
+    renderTableBadgeUI();
+    renderCartDrawer();
+    closeModal();
+    showToast(`📍 Vị trí gọi món: ${state.tableNumber}`);
 }
 
 // Event Listeners Initialization
@@ -247,15 +434,18 @@ function setRole(role) {
 
     const custView = document.getElementById('customer-view');
     const adminView = document.getElementById('admin-view');
+    const widget = document.getElementById('floating-contact-widget');
 
     if (role === 'customer') {
         custView.style.display = 'block';
         adminView.style.display = 'none';
+        if (widget) widget.style.display = 'flex';
         renderProducts();
         updateCartBadge();
     } else {
         custView.style.display = 'none';
         adminView.style.display = 'flex';
+        if (widget) widget.style.display = 'none';
         renderAdminDashboard();
     }
 }
@@ -620,6 +810,11 @@ function renderProducts() {
     const container = document.getElementById('products-grid-container');
     if (!container) return;
 
+    if (!Array.isArray(state.products) || state.products.length === 0) {
+        state.products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+        saveStateToStorage();
+    }
+
     let filtered = state.products;
 
     // Search query takes precedence and ranks products by relevance score
@@ -655,16 +850,26 @@ function renderProducts() {
         return;
     }
 
-    container.innerHTML = filtered.map(p => `
-        <div class="product-card ${p.stock <= 0 ? 'out-of-stock' : ''}">
-            <div class="card-img-holder" onclick="openCustomModal('${p.id}')" title="Nhấn vào hình để xem chi tiết & chọn món">
+    container.innerHTML = filtered.map(p => {
+        const outOfStock = p.stock <= 0;
+        const stockBadge = outOfStock
+            ? '<span class="badge badge-red"><i class="fa-solid fa-ban"></i> Hết hàng</span>'
+            : `<span class="badge badge-green"><i class="fa-solid fa-boxes-stacked"></i> Kho: ${p.stock}</span>`;
+        const tagBadges = (p.tags || []).map(t => `<span class="badge badge-primary">${t}</span>`).join('');
+        const originalPriceHTML = p.originalPrice ? `<span class="original-price">${formatCurrency(p.originalPrice)}</span>` : '';
+        const btnLabel = outOfStock ? 'Hết hàng' : 'Chọn Món';
+        const btnIcon = outOfStock ? 'fa-circle-info' : 'fa-mug-saucer';
+
+        return `
+        <div class="product-card ${outOfStock ? 'out-of-stock' : ''}">
+            <div class="card-img-holder" onclick="openCustomModal('${p.id}')" title="Nhấn vào hình để xem chi tiết">
                 <img src="${p.image}" alt="${p.name}" loading="lazy">
                 <div class="card-img-overlay">
-                    <span><i class="fa-solid fa-eye"></i> ${p.stock <= 0 ? 'Hết hàng' : 'Xem sản phẩm'}</span>
+                    <span><i class="fa-solid fa-eye"></i> ${outOfStock ? 'Hết hàng' : 'Xem sản phẩm'}</span>
                 </div>
                 <div class="card-tags">
-                    ${p.stock <= 0 ? '<span class="badge badge-red"><i class="fa-solid fa-ban"></i> Hết hàng</span>' : `<span class="badge badge-green"><i class="fa-solid fa-boxes-stacked"></i> Kho: ${p.stock}</span>`}
-                    ${(p.tags || []).map(t => `<span class="badge badge-primary">${t}</span>`).join('')}
+                    ${stockBadge}
+                    ${tagBadges}
                 </div>
                 <div class="card-rating">
                     <i class="fa-solid fa-star"></i>
@@ -677,15 +882,15 @@ function renderProducts() {
                 <div class="card-footer">
                     <div class="price-box">
                         <span class="current-price">${formatCurrency(p.price)}</span>
-                        ${p.originalPrice ? `<span class="original-price">${formatCurrency(p.originalPrice)}</span>` : ''}
+                        ${originalPriceHTML}
                     </div>
-                    <button class="btn-detail-item" onclick="openCustomModal('${p.id}')" title="${p.stock <= 0 ? 'Xem chi tiết sản phẩm' : 'Xem chi tiết & Đặt món'}">
-                        <i class="fa-solid ${p.stock <= 0 ? 'fa-circle-info' : 'fa-mug-saucer'}"></i> <span>${p.stock <= 0 ? 'Hết hàng' : 'Chọn Món'}</span>
+                    <button class="btn-detail-item" onclick="openCustomModal('${p.id}')" title="${outOfStock ? 'Xem chi tiết' : 'Chọn món'}: ${p.name}">
+                        <i class="fa-solid ${btnIcon}"></i> <span>${btnLabel}</span>
                     </button>
                 </div>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 // Customization Modal Logic
@@ -1078,7 +1283,7 @@ function openCheckoutModal() {
     toggleCartDrawer(false);
 
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    let shippingFee = subtotal >= 60000 ? 0 : 15000;
+    let shippingFee = (subtotal >= 60000 || state.tableNumber !== 'Mang đi') ? 0 : 15000;
     let discount = 0;
 
     if (state.appliedVoucher) {
@@ -1094,7 +1299,22 @@ function openCheckoutModal() {
     modalBody.innerHTML = `
         <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <div class="modal-body">
-            <h2 class="modal-item-title" style="margin-bottom: 20px;">Xác Nhận Đặt Hàng & Thanh Toán</h2>
+            <h2 class="modal-item-title" style="margin-bottom: 16px;">Xác Nhận Đặt Hàng & Thanh Toán</h2>
+
+            <!-- Recognized Table Location Banner (Req 1) -->
+            <div style="background: linear-gradient(135deg, #fff3e0 0%, #fff8e7 100%); border: 1.5px solid #ffe0b2; padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm);">
+                <div>
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #e65100; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-location-dot"></i> Vị Trí Gọi Món (${state.tableNumber !== 'Mang đi' ? 'Tự Động Từ Mã QR' : 'Mặc Định'})
+                    </span>
+                    <strong style="display: block; font-size: 1.15rem; color: #d35400; font-weight: 800;">
+                        ${state.tableNumber !== 'Mang đi' ? `📍 Phục Vụ Tại: ${state.tableNumber}` : '🛍️ Đơn Đặt Mua Mang Đi'}
+                    </strong>
+                </div>
+                <button type="button" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 20px;" onclick="openSelectTableModal()">
+                    <i class="fa-solid fa-pen-to-square"></i> Đổi Bàn
+                </button>
+            </div>
             
             <form id="checkout-form" onsubmit="processCheckout(event)">
                 <div class="checkout-grid">
@@ -1105,35 +1325,62 @@ function openCheckoutModal() {
                         </div>
                         <div class="form-group">
                             <label>Số Điện Thoại (*)</label>
-                            <input type="tel" id="cust-phone" required placeholder="0888384475" value="0888384475">
+                            <input type="tel" id="cust-phone" required placeholder="0889045686" value="0889045686">
                         </div>
                         <div class="form-group">
-                            <label>Địa Chỉ Giao Hàng (*)</label>
-                            <textarea id="cust-address" rows="3" required placeholder="Số nhà, Tên đường, Phường, Quận...">1059 Tôn Đản, P. Cẩm Lệ, TP. Đà Nẵng</textarea>
+                            <label>Vị Trí Phục Vụ / Địa Chỉ (*)</label>
+                            <input type="text" id="cust-address" required value="${state.tableNumber !== 'Mang đi' ? state.tableNumber + ' (Tại quán)' : '1059 Tôn Đản, P. Cẩm Lệ, TP. Đà Nẵng'}">
                         </div>
                         <div class="form-group">
-                            <label>Ghi Chú Cho Đơn Hàng</label>
-                            <input type="text" id="cust-order-note" placeholder="Ví dụ: Giao giờ hành chính">
+                            <label>Ghi Chú Cho Barista / Nhân Viên</label>
+                            <input type="text" id="cust-order-note" placeholder="Ví dụ: Mang đá riêng, ống hút to...">
                         </div>
                     </div>
 
                     <div>
+                        <!-- Flexible Payment Selection Options (Req 2) -->
                         <div class="form-group">
-                            <label>Phương Thức Thanh Toán (*)</label>
-                            <select id="cust-payment" onchange="togglePaymentQR(this.value)">
-                                <option value="Chuyển khoản Banking">Chuyển Khoản Ngân Hàng (VietQR)</option>
-                                <option value="MoMo QR">Ví Điện Tử MoMo (Quét mã QR)</option>
-                                <option value="Tiền mặt (COD)">Thanh Toán Khi Nhận Hàng (COD)</option>
-                            </select>
+                            <label style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-credit-card"></i> Chọn Hình Thức Thanh Toán (*)</label>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                                <!-- Option 1: Online VietQR Transfer -->
+                                <label id="opt-label-online" class="payment-option-card selected" style="border: 2px solid var(--primary); background: var(--primary-light); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="selectPaymentOption('online', ${grandTotal}, '${checkoutOrderCode}')">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <input type="radio" id="pay-opt-online" name="payment_option" value="online" checked style="accent-color:var(--primary); width:18px; height:18px;">
+                                        <div>
+                                            <strong style="color:var(--primary); font-size:0.92rem; display:block;">
+                                                <i class="fa-solid fa-qrcode" style="color:#005baa;"></i> Thanh Toán Ngay qua Chuyển Khoản
+                                            </strong>
+                                            <small style="color:var(--text-muted); font-size:0.78rem;">Quét VietQR điền sẵn đúng tiền & Nội dung "Thanh toan ${state.tableNumber}"</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge badge-green" style="font-size:0.75rem;"><i class="fa-solid fa-bolt"></i> Nhanh nhất</span>
+                                </label>
+
+                                <!-- Option 2: Pay Later / Cash / At Counter -->
+                                <label id="opt-label-cod" class="payment-option-card" style="border: 2px solid var(--border-color); background: var(--card-bg); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="selectPaymentOption('cod', ${grandTotal}, '${checkoutOrderCode}')">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <input type="radio" id="pay-opt-cod" name="payment_option" value="cod" style="accent-color:var(--primary); width:18px; height:18px;">
+                                        <div>
+                                            <strong style="color:var(--dark); font-size:0.92rem; display:block;">
+                                                <i class="fa-solid fa-money-bill-wave" style="color:#27ae60;"></i> Thanh Toán Sau (Tiền mặt / Tại quầy)
+                                            </strong>
+                                            <small style="color:var(--text-muted); font-size:0.78rem;">Ăn uống xong trả tiền tại quầy hoặc nhân viên thu tiền tại bàn</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge badge-gold" style="font-size:0.75rem;"><i class="fa-solid fa-utensils"></i> Trả sau</span>
+                                </label>
+                            </div>
                         </div>
 
-                        <div id="qr-preview-box">
-                            ${renderVietQRCardHTML(grandTotal, checkoutOrderCode)}
+                        <!-- VietQR API Dynamic Preview Box -->
+                        <div id="qr-preview-box" style="margin-top: 14px;">
+                            ${renderVietQRCardHTML(grandTotal, checkoutOrderCode, state.tableNumber)}
                         </div>
 
-                        <div style="background: var(--light-bg); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <div style="background: var(--light-bg); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 14px;">
                             <div class="cart-row"><span>Tạm tính:</span><span>${formatCurrency(subtotal)}</span></div>
-                            <div class="cart-row"><span>Phí giao hàng:</span><span>${formatCurrency(shippingFee)} ${shippingFee === 0 ? '<strong style="color:#27ae60;">(Freeship)</strong>' : ''}</span></div>
+                            <div class="cart-row"><span>Phí giao hàng:</span><span>${formatCurrency(shippingFee)} ${shippingFee === 0 ? '<strong style="color:#27ae60;">(Miễn phí tại bàn)</strong>' : ''}</span></div>
                             <div class="cart-row"><span>Giảm giá:</span><span style="color:var(--accent-red);">-${formatCurrency(discount)}</span></div>
                             <div class="cart-row total"><span>Tổng thanh toán:</span><span>${formatCurrency(grandTotal)}</span></div>
                         </div>
@@ -1142,145 +1389,75 @@ function openCheckoutModal() {
 
                 <div style="margin-top: 24px; text-align: right;">
                     <button type="button" class="btn-secondary" onclick="closeModal()" style="margin-right: 10px;">Hủy Bỏ</button>
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Đặt Hàng Ngay</button>
+                    <button type="submit" id="submit-checkout-btn" class="btn-primary" style="padding: 12px 24px; font-weight: 700;">
+                        <i class="fa-solid fa-paper-plane"></i> Đã Chuyển Khoản & Gửi Đơn
+                    </button>
                 </div>
             </form>
         </div>
     `;
 
     document.getElementById('modal-overlay').classList.add('open');
+}
+
+function selectPaymentOption(type, grandTotal, checkoutOrderCode) {
+    const radioOnline = document.getElementById('pay-opt-online');
+    const radioCod = document.getElementById('pay-opt-cod');
+    const labelOnline = document.getElementById('opt-label-online');
+    const labelCod = document.getElementById('opt-label-cod');
+    const qrBox = document.getElementById('qr-preview-box');
+    const submitBtn = document.getElementById('submit-checkout-btn');
+
+    if (type === 'online') {
+        if (radioOnline) radioOnline.checked = true;
+        if (labelOnline) {
+            labelOnline.style.borderColor = 'var(--primary)';
+            labelOnline.style.background = 'var(--primary-light)';
+        }
+        if (labelCod) {
+            labelCod.style.borderColor = 'var(--border-color)';
+            labelCod.style.background = 'var(--card-bg)';
+        }
+        if (qrBox) {
+            qrBox.style.display = 'block';
+            qrBox.innerHTML = renderVietQRCardHTML(grandTotal, checkoutOrderCode, state.tableNumber);
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Đã Chuyển Khoản & Gửi Đơn';
+        }
+    } else {
+        if (radioCod) radioCod.checked = true;
+        if (labelCod) {
+            labelCod.style.borderColor = 'var(--primary)';
+            labelCod.style.background = 'var(--primary-light)';
+        }
+        if (labelOnline) {
+            labelOnline.style.borderColor = 'var(--border-color)';
+            labelOnline.style.background = 'var(--card-bg)';
+        }
+        if (qrBox) {
+            qrBox.style.display = 'block';
+            qrBox.innerHTML = `
+                <div style="background: #e8f8f5; border: 1.5px solid #27ae60; padding: 16px; border-radius: var(--radius-md); text-align: center;">
+                    <strong style="color: #27ae60; display: block; font-size: 1rem; margin-bottom: 4px;">
+                        <i class="fa-solid fa-circle-check"></i> Đã chọn Hình thức Thanh toán sau tại quầy!
+                    </strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">
+                        Quý khách vui lòng nhấn nút <strong>"Gửi Đơn Ngay"</strong> bên dưới. Đơn sẽ gửi trực tiếp đến bộ phận Bếp pha chế. Quý khách thanh toán tiền mặt sau tại quầy hoặc tại bàn.
+                    </p>
+                </div>
+            `;
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi Đơn Hàng Ngay (Thanh Toán Sau)';
+        }
+    }
 }
 
 function togglePaymentQR(val) {
     const box = document.getElementById('qr-preview-box');
     if (!box) return;
     box.style.display = val === 'Tiền mặt (COD)' ? 'none' : 'block';
-}
-
-function openPartnershipModal() {
-    const modalBody = document.getElementById('modal-content-container');
-    modalBody.innerHTML = `
-        <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        <div class="modal-body" style="padding: 24px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <span class="badge badge-gold" style="margin-bottom: 8px;"><i class="fa-solid fa-handshake"></i> Hợp Tác & Nhượng Quyền</span>
-                <h2 class="modal-item-title">Thông Tin Liên Hệ Hợp Tác Trực Tiếp</h2>
-                <p style="color: var(--text-muted); font-size: 0.88rem;">Chương trình hợp tác phát triển đại lý, cung ứng nguyên liệu & nhượng quyền thương hiệu Boba Craze</p>
-            </div>
-
-            <!-- Profile Info Card -->
-            <div style="background: linear-gradient(135deg, #fbf0e8 0%, #fff8e7 100%); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
-                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-                    <div style="width: 56px; height: 56px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                        <i class="fa-solid fa-user-tie"></i>
-                    </div>
-                    <div>
-                        <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px;">Phụ Trách Hợp Tác & Nhượng Quyền</span>
-                        <h3 style="font-size: 1.3rem; color: var(--primary); font-weight: 800;">Bà Đỗ Thị Thúy Hằng</h3>
-                        <small style="color: var(--secondary); font-weight: 700;">Giám Đốc Phát Triển Thương Hiệu</small>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.9rem;">
-                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block; font-weight:700;">SỐ ĐIỆN THOẠI / ZALO:</span>
-                        <strong style="color: var(--primary); font-size: 1.05rem;"><i class="fa-solid fa-phone"></i> 0888 384 475</strong>
-                    </div>
-                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block; font-weight:700;">EMAIL TIẾP NHẬN:</span>
-                        <strong style="color: var(--dark);"><i class="fa-solid fa-envelope"></i> hoptac@bobacraze.vn</strong>
-                    </div>
-                    <div style="grid-column: 1/-1; background: #fff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block; font-weight:700;">ĐỊA CHỈ TRỤ SỞ GIAO DỊCH:</span>
-                        <strong style="color: var(--dark);"><i class="fa-solid fa-location-dot" style="color: var(--secondary);"></i> 1059 Tôn Đản, Phường Cẩm Lệ, Thành Phố Đà Nẵng</strong>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interactive Form -->
-            <form onsubmit="submitPartnershipForm(event)" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
-                <h4 style="font-size: 1rem; margin-bottom: 14px; color: var(--primary);"><i class="fa-solid fa-paper-plane"></i> Gửi Yêu Cầu Hợp Tác Trực Tiếp</h4>
-                <div class="form-group">
-                    <label>Họ và Tên Đối Tác (*)</label>
-                    <input type="text" required placeholder="Nhập họ và tên..." id="partner-name">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label>Số Điện Thoại (*)</label>
-                        <input type="tel" required placeholder="090xxxxx..." id="partner-phone">
-                    </div>
-                    <div class="form-group">
-                        <label>Hình Thức Hợp Tác (*)</label>
-                        <select id="partner-type">
-                            <option value="Nhượng quyền thương hiệu">Nhượng quyền thương hiệu</option>
-                            <option value="Cung ứng nguyên liệu / Sỉ">Cung ứng nguyên liệu / Sỉ</option>
-                            <option value="Hợp tác mặt bằng">Hợp tác mặt bằng kinh doanh</option>
-                            <option value="Khác">Hình thức khác</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Nội Dung Lời Nhắn Đến Bà Đỗ Thị Thúy Hằng</label>
-                    <textarea rows="3" placeholder="Nhập chi tiết nhu cầu hợp tác, khu vực dự định mở cửa hàng..." id="partner-message"></textarea>
-                </div>
-                <div style="text-align: right; margin-top: 16px;">
-                    <button type="button" class="btn-secondary" onclick="closeModal()" style="margin-right: 8px;">Đóng</button>
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Gửi Thông Tin Hợp Tác</button>
-                </div>
-            </form>
-        </div>
-    `;
-    document.getElementById('modal-overlay').classList.add('open');
-}
-
-function submitPartnershipForm(e) {
-    e.preventDefault();
-    const name = document.getElementById('partner-name').value;
-    const phone = document.getElementById('partner-phone').value;
-    const type = document.getElementById('partner-type').value;
-
-    alert(`🎉 Cảm ơn bạn ${name}! Thông tin hợp tác (${type}) đã được gửi trực tiếp đến Bà Đỗ Thị Thúy Hằng (SĐT: 0888 384 475).\nChúng tôi sẽ liên hệ lại với bạn trong thời gian sớm nhất!`);
-    closeModal();
-}
-
-function openGuideModal() {
-    const modalBody = document.getElementById('modal-content-container');
-    modalBody.innerHTML = `
-        <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        <div class="modal-body" style="padding: 24px;">
-            <h2 class="modal-item-title"><i class="fa-solid fa-circle-question" style="color:var(--primary);"></i> Hướng Dẫn Đặt Hàng Trực Tuyến</h2>
-            <ol style="padding-left: 20px; line-height: 1.8; margin: 16px 0; font-size: 0.95rem;">
-                <li><strong>Chọn món trà sữa</strong> yêu thích từ Thực Đơn hoặc nhập tên món vào ô Tìm Kiếm.</li>
-                <li><strong>Bấm nút (+)</strong> để tùy chỉnh Size ly (M/L/XL), chọn Mức Đường (0%-100%), Mức Đá và các Toppings thơm ngon.</li>
-                <li><strong>Thêm vào Giỏ Hàng</strong> và kiểm tra ưu đãi Miễn Phí Ship cho đơn từ 60k trở lên.</li>
-                <li><strong>Điền thông tin giao hàng</strong> và chọn phương thức thanh toán (MoMo QR, VietQR hoặc Tiền mặt COD).</li>
-                <li><strong>Nhận Mã Đơn Hàng</strong> và theo dõi tiến trình pha chế & giao hàng trực tiếp trên trang web!</li>
-            </ol>
-            <div style="text-align: right;"><button class="btn-primary" onclick="closeModal()">Đã Hiểu</button></div>
-        </div>
-    `;
-    document.getElementById('modal-overlay').classList.add('open');
-}
-
-function openShippingPolicyModal() {
-    const modalBody = document.getElementById('modal-content-container');
-    modalBody.innerHTML = `
-        <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        <div class="modal-body" style="padding: 24px;">
-            <h2 class="modal-item-title"><i class="fa-solid fa-truck" style="color:var(--primary);"></i> Chính Sách Giao Hàng</h2>
-            <ul style="padding-left: 20px; line-height: 1.8; margin: 16px 0; font-size: 0.95rem; list-style-type: square;">
-                <li><strong>Thời gian giao hàng:</strong> Siêu tốc từ 15 - 30 phút trong khu vực Đà Nẵng.</li>
-                <li><strong>Ưu đãi Phí Ship:</strong> 
-                    <br>- Đơn hàng từ <strong>60.000đ trở lên</strong>: <span style="color:#27ae60; font-weight:700;">MIỄN PHÍ GIAO HÀNG (0đ)</span>.
-                    <br>- Đơn hàng dưới 60.000đ: Đồng giá 15.000đ/đơn.
-                </li>
-                <li><strong>Đóng gói:</strong> Đồ uống được bảo quản trong túi giữ nhiệt chuyên dụng, trân châu nóng dẻo riêng biệt.</li>
-                <li><strong>Hotline khiếu nại & hỗ trợ giao hàng:</strong> <strong>0888 384 475</strong> (Bà Đỗ Thị Thúy Hằng).</li>
-            </ul>
-            <div style="text-align: right;"><button class="btn-primary" onclick="closeModal()">Đã Hiểu</button></div>
-        </div>
-    `;
-    document.getElementById('modal-overlay').classList.add('open');
 }
 
 function processCheckout(e) {
@@ -1297,14 +1474,18 @@ function processCheckout(e) {
         return;
     }
 
-    const name = document.getElementById('cust-name').value;
-    const phone = document.getElementById('cust-phone').value;
-    const address = document.getElementById('cust-address').value;
-    const note = document.getElementById('cust-order-note').value;
-    const payment = document.getElementById('cust-payment').value;
+    const name = document.getElementById('cust-name').value.trim();
+    const phone = document.getElementById('cust-phone').value.trim();
+    const address = document.getElementById('cust-address').value.trim();
+    const note = document.getElementById('cust-order-note').value.trim();
+    
+    // Read chosen payment option radio
+    const paymentRadio = document.querySelector('input[name="payment_option"]:checked');
+    const paymentType = paymentRadio ? paymentRadio.value : 'online';
+    const isOnline = paymentType === 'online';
 
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    let shippingFee = subtotal >= 60000 ? 0 : 15000;
+    let shippingFee = (subtotal >= 60000 || state.tableNumber !== 'Mang đi') ? 0 : 15000;
     let discount = 0;
 
     if (state.appliedVoucher) {
@@ -1314,18 +1495,23 @@ function processCheckout(e) {
     }
 
     const total = Math.max(0, subtotal + shippingFee - discount);
+    const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const currentTable = state.tableNumber || 'Mang đi';
 
     const newOrder = {
-        id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+        id: orderId,
         customerName: name,
         phone: phone,
         address: address,
+        tableNumber: currentTable,
         items: [...state.cart],
         subtotal: subtotal,
         shippingFee: shippingFee,
         discount: discount,
         total: total,
-        paymentMethod: payment,
+        paymentMethod: isOnline ? 'Thanh toán ngay (Chuyển khoản VietQR)' : 'Thanh toán sau (Tiền mặt / Tại quầy)',
+        paymentType: paymentType,
+        paymentStatus: isOnline ? 'da_chuyen_khoan' : 'chua_thanh_toan',
         status: 'pending',
         isStockDeducted: false,
         createdAt: getFormattedLocalDateTime(),
@@ -1340,15 +1526,13 @@ function processCheckout(e) {
     renderProducts();
     closeModal();
 
-    // Push order to central cloud server for real-time multi-device sync to Admin's phone/PC
+    // Push order to central cloud server for real-time multi-device sync to Admin & Kitchen
     pushOrderToCloud(newOrder);
 
-    // Play chime sound if on admin role or notify locally
-    if (state.currentRole === 'admin') {
-        playOrderAlertSound();
-    }
+    // Audio alert chime for new order notification
+    playOrderAlertSound();
 
-    alert(`🎉 Đặt hàng thành công! Mã đơn hàng của bạn là: ${newOrder.id}\nĐơn hàng đã được tự động đồng bộ lên Cloud và gửi đến thiết bị của Admin!`);
+    alert(`🎉 ĐẶT HÀNG THÀNH CÔNG (${currentTable})!\nMã đơn hàng của bạn: #${newOrder.id}\nĐơn hàng đã xuất hiện lập tức trên màn hình Bếp & Quản trị viên!`);
 
     // Render Order Tracker view
     renderOrderTracker(newOrder.id);
@@ -1551,13 +1735,26 @@ function generateOrderTrackerInnerContent(order) {
                 <i class="fa-solid fa-cloud-arrow-up"></i> Đơn hàng đã đồng bộ lên hệ thống Cloud!
             </strong>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
-                Để chắc chắn Admin phản hồi siêu tốc trên Zalo cá nhân (0888 384 475), bấm gửi xác nhận:
+                Nhắn tin hoặc gọi điện cho Admin (0889 045 686) để xác nhận đơn siêu tốc:
             </p>
-            <a href="https://zalo.me/0888384475?text=${encodeURIComponent(`🥤 ĐƠN HÀNG MỚI #${order.id}\n👤 Khách: ${order.customerName} (${order.phone})\n📍 ĐC: ${order.address}\n🧋 Món: ${order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}\n💰 Tổng tiền: ${formatCurrency(order.total)}`)}" 
-               target="_blank" rel="noopener noreferrer" 
-               class="btn-primary" style="background: #0068ff; border-color: #0068ff; padding: 8px 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-paper-plane"></i> Gửi Xác Nhận Đơn Qua Zalo Admin (0888 384 475)
-            </a>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <a href="https://zalo.me/0889045686?text=${encodeURIComponent(`🥤 ĐƠN HÀNG MỚI #${order.id}\n👤 Khách: ${order.customerName} (${order.phone})\n📍 ĐC: ${order.address}\n🧋 Món: ${order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}\n💰 Tổng tiền: ${formatCurrency(order.total)}`)}" 
+                   target="_blank" rel="noopener noreferrer" onclick="handleContactClick(event, 'zalo')"
+                   class="btn-primary" style="background: #0068ff; border-color: #0068ff; padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-paper-plane"></i> Gửi Qua Zalo (0889 045 686)
+                </a>
+
+                <a href="sms:0889045686?body=${encodeURIComponent(`Don hang #${order.id} - ${order.customerName} (${order.phone}) - Tong: ${formatCurrency(order.total)}`)}"
+                   onclick="handleContactClick(event, 'sms')"
+                   class="btn-primary" style="background: #e67e22; border-color: #e67e22; padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-comment-sms"></i> Nhắn SMS Xác Nhận
+                </a>
+
+                <button onclick="handleContactClick(event, 'call')" 
+                        class="btn-secondary" style="padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-phone" style="color: #27ae60;"></i> Gọi Hotline Admin
+                </button>
+            </div>
         </div>
 
         <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 16px;">
@@ -1724,6 +1921,7 @@ function renderAdminDashboard() {
     initAdminCharts();
     renderAdminOrders();
     renderAdminProducts();
+    renderQRTableSection();
 }
 
 function switchAdminTab(sectionId) {
@@ -1738,6 +1936,7 @@ function switchAdminTab(sectionId) {
     if (sectionId === 'overview') renderAdminDashboard();
     else if (sectionId === 'orders') renderAdminOrders();
     else if (sectionId === 'menu') renderAdminProducts();
+    else if (sectionId === 'qr') renderQRTableSection();
 }
 
 function renderAdminMetrics() {
@@ -1803,46 +2002,77 @@ function renderAdminOrders() {
     if (!container) return;
 
     if (state.orders.length === 0) {
-        container.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">Chưa có đơn hàng nào!</td></tr>`;
+        container.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">Chưa có đơn hàng nào!</td></tr>`;
         return;
     }
 
-    container.innerHTML = state.orders.map(order => `
-        <tr>
-            <td>
-                <strong>#${order.id}</strong>
-                <br><small style="color:var(--text-muted); font-size:0.75rem;">🕒 ${formatOrderDateTime(order.createdAt)}</small>
-            </td>
-            <td>
-                <strong>${order.customerName}</strong>
-                <br><small style="color:var(--text-muted);">${order.phone}</small>
-            </td>
-            <td>
-                <small>${order.items.map(i => `${i.name} (${i.quantity})`).join(', ')}</small>
-            </td>
-            <td><strong>${formatCurrency(order.total)}</strong></td>
-            <td><small>${order.paymentMethod}</small></td>
-            <td>
-                <select class="table-status-select ${getStatusClass(order.status)}" onchange="updateOrderStatus('${order.id}', this.value)">
-                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Chờ xác nhận</option>
-                    <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Đang pha chế</option>
-                    <option value="shipping" ${order.status === 'shipping' ? 'selected' : ''}>Đang giao</option>
-                    <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Hoàn thành</option>
-                    <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Hủy đơn</option>
-                </select>
-            </td>
-            <td>
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="renderOrderTracker('${order.id}')" title="Xem chi tiết dòng thời gian đơn hàng">
-                        <i class="fa-solid fa-eye"></i> Xem
-                    </button>
-                    <button class="btn-primary" style="padding: 5px 10px; font-size: 0.78rem; border-radius:12px;" onclick="advanceOrderStatusAdmin('${order.id}')" title="⏩ Chuyển đơn sang bước tiếp theo trong thời gian thực">
-                        <i class="fa-solid fa-forward"></i> Chuyển bước
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    container.innerHTML = state.orders.map(order => {
+        const isTable = order.tableNumber && order.tableNumber !== 'Mang đi';
+        const isOnline = order.paymentType === 'online' || (order.paymentMethod && (order.paymentMethod.includes('VietQR') || order.paymentMethod.includes('Chuyển khoản')));
+
+        return `
+            <tr>
+                <td>
+                    <strong style="color:var(--primary); font-size:1.02rem;">#${order.id}</strong>
+                    <br><small style="color:var(--text-muted); font-size:0.75rem;">🕒 ${formatOrderDateTime(order.createdAt)}</small>
+                </td>
+                <td>
+                    <span class="badge ${isTable ? 'badge-primary' : 'badge-gold'}" style="font-size:0.85rem; font-weight:700; padding:6px 12px; border-radius:12px;">
+                        <i class="fa-solid ${isTable ? 'fa-chair' : 'fa-bag-shopping'}"></i> ${order.tableNumber || 'Mang đi'}
+                    </span>
+                </td>
+                <td>
+                    <strong>${order.customerName}</strong>
+                    <br><small style="color:var(--text-muted);"><i class="fa-solid fa-phone" style="font-size:0.75rem;"></i> ${order.phone}</small>
+                </td>
+                <td>
+                    <div style="max-width:280px; font-size:0.85rem; line-height:1.4;">
+                        ${order.items.map(i => `
+                            <div>
+                                <strong>${i.name}</strong> <span style="color:var(--primary); font-weight:700;">(x${i.quantity})</span>
+                                <br><small style="color:var(--text-muted);">Size ${i.size || 'M'}, ${i.sugar || '100%'} đường, ${i.ice || '100%'} đá${i.toppings && i.toppings.length ? '<br>+ Topping: ' + i.toppings.join(', ') : ''}</small>
+                            </div>
+                        `).join('<hr style="border-top:1px dashed var(--border-color); margin:6px 0;">')}
+                        ${order.note ? `<div style="color:#d35400; font-size:0.78rem; margin-top:4px;"><i>📝 Ghi chú: ${order.note}</i></div>` : ''}
+                    </div>
+                </td>
+                <td><strong style="color:var(--primary); font-size:1.05rem;">${formatCurrency(order.total)}</strong></td>
+                <td>
+                    ${isOnline ? `
+                        <span class="badge badge-green" style="font-size:0.78rem; padding:5px 10px;" title="Khách chọn thanh toán qua VietQR API">
+                            <i class="fa-solid fa-qrcode"></i> VietQR (Trả ngay)
+                        </span>
+                    ` : `
+                        <span class="badge badge-gold" style="font-size:0.78rem; padding:5px 10px;" title="Khách chọn thanh toán bằng tiền mặt tại quầy / tại bàn">
+                            <i class="fa-solid fa-money-bill-wave"></i> Tiền mặt (Trả sau)
+                        </span>
+                    `}
+                </td>
+                <td>
+                    <select class="table-status-select ${getStatusClass(order.status)}" onchange="updateOrderStatus('${order.id}', this.value)" style="font-weight:700; padding:6px 10px; border-radius:8px;">
+                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ Chờ xác nhận</option>
+                        <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>🧋 Đang pha chế</option>
+                        <option value="shipping" ${order.status === 'shipping' ? 'selected' : ''}>🛵 Đang giao hàng</option>
+                        <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>✅ Hoàn thành</option>
+                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>❌ Hủy đơn</option>
+                    </select>
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="renderOrderTracker('${order.id}')" title="Xem chi tiết dòng thời gian đơn hàng">
+                            <i class="fa-solid fa-eye"></i> Xem
+                        </button>
+                        <button class="btn-primary" style="padding: 5px 10px; font-size: 0.78rem; border-radius:12px; background:#8d4925;" onclick="printOrderBill('${order.id}')" title="In hóa đơn đơn hàng này">
+                            <i class="fa-solid fa-print"></i> In Bill
+                        </button>
+                        <button class="btn-primary" style="padding: 5px 10px; font-size: 0.78rem; border-radius:12px;" onclick="advanceOrderStatusAdmin('${order.id}')" title="⏩ Chuyển đơn sang bước tiếp theo">
+                            <i class="fa-solid fa-forward"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function getStatusClass(status) {
@@ -2291,7 +2521,23 @@ function fallbackCopy(text, label = '') {
     document.body.removeChild(textArea);
 }
 
-function showToast(message) {
+function showToast(message, type = 'auto') {
+    // Auto-detect toast type from message content
+    if (type === 'auto') {
+        if (/✅|thành công|hoàn thành|cập nhật|đồng bộ|sao chép|thêm|lưu/i.test(message)) type = 'success';
+        else if (/⚠️|lỗi|thất bại|hết hàng|không|error/i.test(message)) type = 'error';
+        else if (/🔔|cảnh báo|sắp hết|chú ý/i.test(message)) type = 'warning';
+        else if (/🔄|đang|đồng bộ|cloud|firebase/i.test(message)) type = 'info';
+        else type = 'success';
+    }
+
+    const iconMap = {
+        success: '<i class="fa-solid fa-circle-check" style="color:#27ae60;"></i>',
+        error:   '<i class="fa-solid fa-circle-xmark" style="color:#e74c3c;"></i>',
+        warning: '<i class="fa-solid fa-triangle-exclamation" style="color:#f39c12;"></i>',
+        info:    '<i class="fa-solid fa-circle-info" style="color:#0068ff;"></i>'
+    };
+
     let toast = document.getElementById('boba-toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -2299,7 +2545,16 @@ function showToast(message) {
         toast.className = 'boba-toast';
         document.body.appendChild(toast);
     }
-    toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--secondary);"></i> <span>${message}</span>`;
+
+    // Remove old type classes
+    toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+    toast.classList.add(`toast-${type}`);
+
+    toast.innerHTML = `
+        ${iconMap[type] || iconMap.success}
+        <span style="flex:1;">${message}</span>
+        <div class="toast-progress"></div>
+    `;
     toast.classList.add('show');
     setTimeout(() => {
         toast.classList.remove('show');
@@ -2593,3 +2848,220 @@ async function manualSyncStockToCustomers() {
     showToast('✅ Đã đồng bộ số lượng tồn kho mới nhất cho tất cả khách hàng!');
 }
 
+/* ==========================================================================
+   SMART CONTACT & CALLING DIALOG (iOS STYLE MATCHING SCREENSHOT)
+   ========================================================================== */
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768 && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
+}
+
+function handleContactClick(event, type = 'call') {
+    if (type === 'call') {
+        if (event) event.preventDefault();
+        openCallModal();
+    } else if (type === 'sms') {
+        if (!isMobileDevice()) {
+            if (event) event.preventDefault();
+            openCallModal();
+        }
+    } else if (type === 'zalo') {
+        // Zalo opens URL directly
+    } else if (type === 'messenger') {
+        // Messenger opens URL directly
+    }
+}
+
+function openCallModal() {
+    const phone = '0889045686';
+    const container = document.getElementById('modal-content-container');
+    
+    container.innerHTML = `
+        <div class="ios-call-dialog-container">
+            <div class="ios-call-dialog-body">
+                <a href="tel:${phone}" class="ios-call-btn" onclick="closeModal()">
+                    Gọi ${phone}
+                </a>
+                <button class="ios-cancel-btn" onclick="closeModal()">
+                    Hủy
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openContactModal(defaultType = 'call') {
+    openCallModal();
+}
+
+/* ==========================================================================
+   IN HÓA ĐƠN — PRINT BILL
+   ========================================================================== */
+function printOrderBill(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const billArea = document.getElementById('print-bill-area');
+    if (!billArea) return;
+
+    const statusLabels = {
+        pending: 'Chờ xác nhận', preparing: 'Đang pha chế',
+        shipping: 'Đang giao hàng', completed: 'Hoàn thành', cancelled: 'Đã hủy'
+    };
+
+    billArea.innerHTML = `
+        <div class="bill-logo">&#x1F9CB; Trà Sữa Thúy Hằng</div>
+        <div class="bill-sub">
+            1059 Tôn Đản, P. Cẩm Lệ, TP. Đà Nẵng<br>
+            Hotline: 0889 045 686<br>
+            Mở cửa: 08:00 - 22:30<br>
+            --------------------------------<br>
+            HÓA ĐƠN: <strong>#${order.id}</strong><br>
+            Ngày: ${formatOrderDateTime(order.createdAt)}<br>
+            Khách: <strong>${order.customerName}</strong> (${order.phone})<br>
+            Vị trí: <strong>${order.tableNumber || 'Mang đi'}</strong><br>
+            Tình trạng: <strong>${statusLabels[order.status] || order.status}</strong>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Món</th>
+                    <th>SL</th>
+                    <th>Giá</th>
+                    <th>TT</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${order.items.map(item => `
+                    <tr>
+                        <td>${item.name}<br><small>Size ${item.size}, ${item.sugar} đường, ${item.ice} đá${item.toppings && item.toppings.length ? '<br>+ ' + item.toppings.join(', ') : ''}</small></td>
+                        <td>${item.quantity}</td>
+                        <td>${formatCurrency(item.price)}</td>
+                        <td>${formatCurrency(item.price * item.quantity)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <div style="font-size:12px; text-align:right;">
+            <div>Tạm tính: ${formatCurrency(order.subtotal || 0)}</div>
+            <div>Phí giao: ${formatCurrency(order.shippingFee || 0)}</div>
+            ${order.discount ? `<div>Giảm giá: -${formatCurrency(order.discount)}</div>` : ''}
+        </div>
+        <div class="bill-total">TỔNG: ${formatCurrency(order.total)}</div>
+        <div class="bill-footer">
+            Thanh toán: ${order.paymentMethod || 'Tiền mặt'}<br>
+            Cảm ơn Quý Khách đã ủng hộ Trà Sữa Thúy Hằng! Ạ<br>
+            Xin mời quý khách quảng láo để chúng tôi phục vụ tốt hơn.
+        </div>
+    `;
+
+    window.print();
+    showToast(`✅ Đang in hóa đơn #${orderId}`, 'success');
+}
+
+/* ==========================================================================
+   XUẤT CSV — EXPORT ORDERS TO CSV
+   ========================================================================== */
+function exportOrdersCSV() {
+    if (!state.orders || state.orders.length === 0) {
+        showToast('⚠️ Chưa có đơn hàng nào để xuất!', 'warning');
+        return;
+    }
+
+    const headers = ['Mã Đơn', 'Khách Hàng', 'Số ĐT', 'Địa Chỉ/Bàn', 'Món', 'Tạm Tính', 'Phí Ship', 'Giảm Giá', 'Tổng Tiền', 'Thanh Toán', 'Trạng Thái', 'Thời Gian', 'Ghi Chú'];
+
+    const rows = state.orders.map(o => [
+        o.id,
+        o.customerName,
+        o.phone,
+        o.tableNumber || 'Mang đi',
+        o.items.map(i => `${i.name}(x${i.quantity})`).join(' | '),
+        o.subtotal || 0,
+        o.shippingFee || 0,
+        o.discount || 0,
+        o.total,
+        o.paymentMethod || '',
+        o.status,
+        o.createdAt,
+        o.note || ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const BOM = '\uFEFF'; // BOM for UTF-8 Excel compatibility
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `don-hang-tra-sua-thuy-hang-${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    showToast(`✅ Đã xuất ${state.orders.length} đơn hàng ra file CSV!`, 'success');
+}
+
+/* ==========================================================================
+   QR CODE BÀN — RENDER QR TABLE SECTION
+   ========================================================================== */
+function renderQRTableSection() {
+    const container = document.getElementById('qr-table-grid-container');
+    if (!container) return;
+
+    // Clear existing QR codes
+    container.innerHTML = '';
+
+    const baseUrl = window.location.href.split('?')[0].split('#')[0];
+    const totalTables = 15;
+
+    for (let i = 1; i <= totalTables; i++) {
+        const tableUrl = `${baseUrl}?ban=${i}`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=6e3b21&data=${encodeURIComponent(tableUrl)}`;
+
+        const card = document.createElement('div');
+        card.className = 'qr-table-card';
+        card.innerHTML = `
+            <div style="width:130px; height:130px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; background:#ffffff; padding:6px; border-radius:12px; border:1px solid var(--border-color); box-shadow:var(--shadow-sm);">
+                <img src="${qrApiUrl}" alt="QR Bàn ${i}" style="width:100%; height:100%; object-fit:contain; border-radius:6px;" loading="lazy">
+            </div>
+            <h4 style="font-weight:800; color:var(--primary); font-size:1rem; margin-bottom:4px;">📍 Bàn ${i}</h4>
+            <a href="${tableUrl}" target="_blank" style="font-size:0.75rem; color:var(--text-muted); word-break:break-all; text-decoration:underline;">?ban=${i}</a>
+            <div style="margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn-dl-qr" onclick="window.open('${tableUrl}', '_blank')" title="Mở đường link bàn ${i}">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Link
+                </button>
+                <a href="${qrApiUrl}" download="QR_Ban_${i}.png" target="_blank" class="btn-dl-qr" style="text-decoration:none; background:var(--primary); color:#fff;" title="Tải ảnh QR về máy để in">
+                    <i class="fa-solid fa-download"></i> Tải QR
+                </a>
+            </div>
+        `;
+        container.appendChild(card);
+    }
+
+    // Add "Mang đi" QR Card
+    const takeawayUrl = baseUrl;
+    const takeawayQrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=6e3b21&data=${encodeURIComponent(takeawayUrl)}`;
+    const takeawayCard = document.createElement('div');
+    takeawayCard.className = 'qr-table-card';
+    takeawayCard.innerHTML = `
+        <div style="width:130px; height:130px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; background:#ffffff; padding:6px; border-radius:12px; border:1px solid var(--border-color); box-shadow:var(--shadow-sm);">
+            <img src="${takeawayQrApiUrl}" alt="QR Mang Đi" style="width:100%; height:100%; object-fit:contain; border-radius:6px;" loading="lazy">
+        </div>
+        <h4 style="font-weight:800; color:var(--primary); font-size:1rem; margin-bottom:4px;">🛍️ Mang Đi</h4>
+        <a href="${takeawayUrl}" target="_blank" style="font-size:0.75rem; color:var(--text-muted); word-break:break-all; text-decoration:underline;">Trang Chủ</a>
+        <div style="margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+            <button class="btn-dl-qr" onclick="window.open('${takeawayUrl}', '_blank')">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Link
+            </button>
+            <a href="${takeawayQrApiUrl}" download="QR_MangDi.png" target="_blank" class="btn-dl-qr" style="text-decoration:none; background:var(--primary); color:#fff;">
+                <i class="fa-solid fa-download"></i> Tải QR
+            </a>
+        </div>
+    `;
+    container.appendChild(takeawayCard);
+
+    showToast(`✅ Đã tạo 15 mã QR cho từng bàn!`, 'success');
+}

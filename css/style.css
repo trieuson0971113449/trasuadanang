@@ -1,29 +1,29 @@
 /* ==========================================================================
-   Boba Craze - Premium Milk Tea & Admin Dashboard Stylesheet
+   Trà Sữa Thúy Hằng - Premium Tea & Admin Dashboard Stylesheet v6.0.0
    ========================================================================== */
 
 :root {
-    /* Color Palette - Milk Tea & Gourmet Theme */
-    --primary: #8d4925;
-    --primary-hover: #72391b;
-    --primary-light: #fbf0e8;
-    --secondary: #e67e22;
-    --secondary-hover: #d35400;
-    --accent-gold: #f39c12;
-    --accent-green: #27ae60;
-    --accent-red: #e74c3c;
-    --dark: #2c221e;
-    --dark-surface: #1e1714;
-    --light-bg: #fcf9f6;
+    /* Color Palette - Premium Milk Tea & Gourmet Theme */
+    --primary: #6e3b21;
+    --primary-hover: #552d19;
+    --primary-light: #fbf4ee;
+    --secondary: #d97706;
+    --secondary-hover: #b45309;
+    --accent-gold: #f59e0b;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --dark: #1f1916;
+    --dark-surface: #171210;
+    --light-bg: #faf6f0;
     --card-bg: #ffffff;
-    --border-color: #eadfd8;
-    --text-main: #362923;
-    --text-muted: #8c7a70;
+    --border-color: #ebe1d8;
+    --text-main: #231815;
+    --text-muted: #786b65;
 
     /* Shadows & Effects */
-    --shadow-sm: 0 2px 8px rgba(44, 34, 30, 0.06);
-    --shadow-md: 0 8px 24px rgba(44, 34, 30, 0.08);
-    --shadow-lg: 0 16px 36px rgba(44, 34, 30, 0.14);
+    --shadow-sm: 0 2px 8px rgba(110, 59, 33, 0.05);
+    --shadow-md: 0 8px 24px rgba(110, 59, 33, 0.08);
+    --shadow-lg: 0 16px 36px rgba(110, 59, 33, 0.12);
     --radius-sm: 8px;
     --radius-md: 14px;
     --radius-lg: 24px;
@@ -61,6 +61,8 @@ body {
 
 h1, h2, h3, .brand-font {
     font-family: 'Playfair Display', serif;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
 }
 
 a {
@@ -1782,6 +1784,11 @@ body.dark-theme .realtime-timer-banner {
     animation: contactPulseGreen 2s infinite;
 }
 
+.contact-btn-sms {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    animation: contactPulseOrange 2s infinite 0.2s;
+}
+
 .contact-btn-zalo {
     background: linear-gradient(135deg, #0068ff 0%, #0046ab 100%);
     animation: contactPulseBlue 2s infinite 0.4s;
@@ -1796,9 +1803,13 @@ body.dark-theme .realtime-timer-banner {
     color: #fff;
 }
 
-.contact-btn-messenger {
-    background: linear-gradient(135deg, #0084ff 0%, #00c6ff 100%);
-    animation: contactPulseCyan 2s infinite 0.8s;
+.contact-btn-messenger,
+a[href*="m.me"],
+a[href*="messenger"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .contact-btn-tooltip {
@@ -1843,6 +1854,12 @@ body.dark-theme .realtime-timer-banner {
     100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
 }
 
+@keyframes contactPulseOrange {
+    0% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.7); }
+    70% { box-shadow: 0 0 0 14px rgba(230, 126, 34, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0); }
+}
+
 @keyframes contactPulseBlue {
     0% { box-shadow: 0 0 0 0 rgba(0, 104, 255, 0.7); }
     70% { box-shadow: 0 0 0 14px rgba(0, 104, 255, 0); }
@@ -1853,6 +1870,91 @@ body.dark-theme .realtime-timer-banner {
     0% { box-shadow: 0 0 0 0 rgba(0, 198, 255, 0.7); }
     70% { box-shadow: 0 0 0 14px rgba(0, 198, 255, 0); }
     100% { box-shadow: 0 0 0 0 rgba(0, 198, 255, 0); }
+}
+
+/* Contact Modal Styles */
+.contact-modal-phone-banner {
+    background: linear-gradient(135deg, #1e8449 0%, #27ae60 100%);
+    color: white;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    margin: 16px 0;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.contact-phone-number-display {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    display: block;
+    margin: 4px 0 8px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.contact-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+}
+
+/* iOS Style Call Dialog Popup (Requirement matching screenshot) */
+.ios-call-dialog-container {
+    padding: 12px 6px;
+    text-align: center;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.ios-call-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ios-call-btn {
+    background: #007aff;
+    background: linear-gradient(135deg, #007aff 0%, #0056b3 100%);
+    color: #ffffff !important;
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding: 16px 20px;
+    border-radius: 28px;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+    width: 100%;
+    box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35);
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.ios-call-btn:hover, .ios-call-btn:active {
+    transform: scale(0.98);
+    opacity: 0.92;
+    color: #ffffff !important;
+}
+
+.ios-cancel-btn {
+    background: #e5e5ea;
+    color: #3a3a3c;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-radius: 28px;
+    border: none;
+    text-align: center;
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ios-cancel-btn:hover, .ios-cancel-btn:active {
+    background: #d1d1d6;
+    transform: scale(0.98);
 }
 
 /* ==========================================================================
@@ -1918,6 +2020,89 @@ body.dark-theme .realtime-timer-banner {
     }
 }
 
+/* ==========================================================================
+   DYNAMIC TABLE BADGE, PICKER & PAYMENT SELECTION ENHANCEMENTS
+   ========================================================================== */
 
+/* Header Table Badge Pill */
+.table-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
 
+.table-active-pill {
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    color: #e65100;
+    border-color: #ffd180;
+}
 
+.table-active-pill:hover {
+    background: #ffe0b2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(230, 81, 0, 0.25);
+}
+
+.table-takeaway-pill {
+    background: linear-gradient(135deg, #e8f8f5 0%, #d4efdf 100%);
+    color: #27ae60;
+    border-color: #a3e4d7;
+}
+
+.table-takeaway-pill:hover {
+    background: #a3e4d7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.25);
+}
+
+/* Table Picker Grid Buttons */
+.btn-table-number {
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border-color);
+    background: #ffffff;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+}
+
+.btn-table-number:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.btn-table-number.selected {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(110, 59, 33, 0.3);
+}
+
+.payment-option-card {
+    transition: var(--transition);
+}
+
+.payment-option-card:hover {
+    transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   TOAST NÂNG CẤP — position relative for progress bar
+   ========================================================================== */
+.boba-toast {
+    position: relative;
+    overflow: hidden;
+}
