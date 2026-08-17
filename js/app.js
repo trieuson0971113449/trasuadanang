@@ -2565,36 +2565,58 @@ function showToast(message, type = 'auto') {
    CROSS-DEVICE REAL-TIME CLOUD ORDER SYNC ENGINE & AUDIO ALERTS
    ========================================================================== */
 
-// Web Audio API Doorbell Chime ("Ding-Dong!") for New Order Notifications
-function playOrderAlertSound() {
+let globalAudioCtx = null;
+
+function unlockAudioContext() {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!globalAudioCtx && AudioCtx) {
+            globalAudioCtx = new AudioCtx();
+        }
+        if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+            globalAudioCtx.resume();
+        }
+    } catch(e) {}
+}
+
+document.addEventListener('click', unlockAudioContext);
+document.addEventListener('touchstart', unlockAudioContext);
+
+function playOrderAlertSound() {
+    try {
+        unlockAudioContext();
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        const ctx = globalAudioCtx || new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const now = ctx.currentTime;
         
-        // Note 1 ("Ding" - 880Hz A5)
+        // Note 1 ("Ding" - 987.77Hz B5)
         const osc1 = ctx.createOscillator();
         const gain1 = ctx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(880, ctx.currentTime);
-        gain1.gain.setValueAtTime(0.35, ctx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(987.77, now);
+        gain1.gain.setValueAtTime(0.7, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
         osc1.connect(gain1);
         gain1.connect(ctx.destination);
-        osc1.start(ctx.currentTime);
-        osc1.stop(ctx.currentTime + 0.5);
+        osc1.start(now);
+        osc1.stop(now + 0.6);
 
-        // Note 2 ("Dong" - 587.33Hz D5)
+        // Note 2 ("Dong" - 659.25Hz E5)
         const osc2 = ctx.createOscillator();
         const gain2 = ctx.createGain();
         osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(587.33, ctx.currentTime + 0.25);
-        gain2.gain.setValueAtTime(0.45, ctx.currentTime + 0.25);
-        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
+        osc2.frequency.setValueAtTime(659.25, now + 0.2);
+        gain2.gain.setValueAtTime(0.8, now + 0.2);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
         osc2.connect(gain2);
         gain2.connect(ctx.destination);
-        osc2.start(ctx.currentTime + 0.25);
-        osc2.stop(ctx.currentTime + 1.1);
+        osc2.start(now + 0.2);
+        osc2.stop(now + 1.2);
     } catch (e) {
         console.warn('Audio alert sound error:', e);
     }
