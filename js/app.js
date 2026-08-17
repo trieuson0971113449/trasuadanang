@@ -2601,10 +2601,53 @@ function playOrderAlertSound() {
 }
 
 /* ==========================================================================
-   CROSS-DEVICE REAL-TIME CLOUD ENGINE (JSONBlob Atomic Bidirectional Sync)
+   CROSS-DEVICE REAL-TIME CLOUD ENGINE (RESTful-API.dev Permanent Sync)
    ========================================================================== */
 
-const JSONBLOB_CLOUD_ENDPOINT = 'https://jsonblob.com/api/jsonBlob/019feaae-743a-7fab-86a9-ac28d5f361fe';
+const PRIMARY_CLOUD_ENDPOINT = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a00eb07dfd338a';
+
+async function fetchCloudData() {
+    try {
+        const res = await fetch(PRIMARY_CLOUD_ENDPOINT);
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (json && json.data) {
+            return {
+                orders: Array.isArray(json.data.orders) ? json.data.orders : [],
+                products: Array.isArray(json.data.products) ? json.data.products : []
+            };
+        }
+    } catch(e) {
+        console.warn('Primary cloud fetch error:', e);
+    }
+    return null;
+}
+
+async function saveCloudData(ordersList, productsList) {
+    try {
+        const payload = {
+            name: "Tra Sua Thuy Hang Orders & Menu",
+            data: {
+                orders: ordersList || [],
+                products: productsList || state.products || [],
+                updatedAt: new Date().toISOString()
+            }
+        };
+        await fetch(PRIMARY_CLOUD_ENDPOINT, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        console.log('⚡ Saved to Cloud Relay Engine successfully');
+        return true;
+    } catch(e) {
+        console.warn('Save to cloud error:', e);
+        return false;
+    }
+}
 
 // Helper function to merge two order lists safely without losing any orders or status updates
 function mergeOrdersLists(listA, listB) {
@@ -2640,29 +2683,13 @@ async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
     try {
-        let cloudOrders = [];
-        let cloudProducts = state.products;
-
-        try {
-            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
-            if (res.ok) {
-                const parsed = await res.json();
-                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
-                if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) cloudProducts = parsed.products;
-            }
-        } catch (e) {}
+        let cloudData = await fetchCloudData();
+        let cloudOrders = cloudData ? cloudData.orders : [];
+        let cloudProducts = (cloudData && cloudData.products.length > 0) ? cloudData.products : state.products;
 
         const mergedOrders = mergeOrdersLists(cloudOrders, [...state.orders, order]);
-        
-        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ orders: mergedOrders, products: cloudProducts })
-        });
-        console.log('⚡ Order published & merged to Cloud Engine:', order.id);
+        await saveCloudData(mergedOrders, cloudProducts);
+        console.log('⚡ Order published & merged to Cloud Relay:', order.id);
     } catch (err) {
         console.warn('Cloud order push warning:', err);
     }
@@ -2678,41 +2705,23 @@ async function pushOrderToCloud(order) {
 
 async function pushAllOrdersToCloud() {
     try {
-        let cloudOrders = [];
-        try {
-            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
-            if (res.ok) {
-                const parsed = await res.json();
-                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
-            }
-        } catch (e) {}
-
+        const cloudData = await fetchCloudData();
+        const cloudOrders = cloudData ? cloudData.orders : [];
         const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
-
-        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ orders: mergedOrders, products: state.products })
-        });
+        await saveCloudData(mergedOrders, state.products);
     } catch (e) {}
 }
 
 // Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices & Sync Status
 async function syncCloudOrders() {
     try {
-        const response = await fetch(JSONBLOB_CLOUD_ENDPOINT);
-        if (!response.ok) return;
-
-        const data = await response.json();
-        if (!data || !Array.isArray(data.orders)) return;
+        const cloudData = await fetchCloudData();
+        if (!cloudData || !Array.isArray(cloudData.orders)) return;
 
         let hasNewOrder = false;
         let statusChanged = false;
 
-        data.orders.forEach(cloudOrder => {
+        cloudData.orders.forEach(cloudOrder => {
             if (cloudOrder && cloudOrder.id) {
                 const localOrderIndex = state.orders.findIndex(o => o.id === cloudOrder.id);
                 if (localOrderIndex === -1) {
@@ -2721,7 +2730,7 @@ async function syncCloudOrders() {
 
                     if (state.currentRole === 'admin') {
                         playOrderAlertSound();
-                        showToast(`🔔 CÓ ĐƠN HÀNG MỚI TỪ KHÁCH HÀNG: #${cloudOrder.id} - ${cloudOrder.customerName} (${formatCurrency(cloudOrder.total)})`);
+                        showToast(`🔔 ĐƠN HÀNG MỚI MÃ QR: #${cloudOrder.id} - ${cloudOrder.customerName} (${cloudOrder.tableNumber || 'Tại Bàn'})`);
                     }
                 } else {
                     if (state.orders[localOrderIndex].status !== cloudOrder.status) {
@@ -2732,7 +2741,7 @@ async function syncCloudOrders() {
             }
         });
 
-        const missingInCloud = state.orders.some(o => !data.orders.some(co => co.id === o.id));
+        const missingInCloud = state.orders.some(o => !cloudData.orders.some(co => co.id === o.id));
 
         if (hasNewOrder || statusChanged) {
             saveStateToStorage();
@@ -2788,25 +2797,10 @@ function startCloudOrderSync() {
 async function pushProductsToCloud() {
     if (!state.products) return;
     try {
-        let cloudOrders = [];
-        try {
-            const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
-            if (res.ok) {
-                const parsed = await res.json();
-                if (parsed && Array.isArray(parsed.orders)) cloudOrders = parsed.orders;
-            }
-        } catch (e) {}
-
+        const cloudData = await fetchCloudData();
+        const cloudOrders = cloudData ? cloudData.orders : state.orders;
         const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
-
-        await fetch(JSONBLOB_CLOUD_ENDPOINT, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ orders: mergedOrders, products: state.products })
-        });
+        await saveCloudData(mergedOrders, state.products);
         console.log('⚡ Menu products published to Cloud Relay');
     } catch (e) {
         console.warn('Cloud menu push error:', e);
@@ -2815,12 +2809,9 @@ async function pushProductsToCloud() {
 
 async function syncCloudProducts() {
     try {
-        const res = await fetch(JSONBLOB_CLOUD_ENDPOINT);
-        if (!res.ok) return;
-
-        const data = await res.json();
-        if (data && Array.isArray(data.products) && data.products.length > 0) {
-            const cloudProds = data.products;
+        const cloudData = await fetchCloudData();
+        if (cloudData && Array.isArray(cloudData.products) && cloudData.products.length > 0) {
+            const cloudProds = cloudData.products;
             const currentSig = JSON.stringify(state.products.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
             const cloudSig = JSON.stringify(cloudProds.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
 
