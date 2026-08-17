@@ -2601,97 +2601,48 @@ function playOrderAlertSound() {
 }
 
 /* ==========================================================================
-   CROSS-DEVICE REAL-TIME CLOUD ENGINE (RESTful-API.dev Permanent Sync)
+   CROSS-DEVICE REAL-TIME CLOUD ENGINE (CrudCrud Instant QR Sync)
    ========================================================================== */
 
-const PRIMARY_CLOUD_ENDPOINT = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a00eb07dfd338a';
+const CRUDCRUD_ENDPOINT = 'https://crudcrud.com/api/9760d75f68d947508cbf467aa085fdae/orders';
 
-async function fetchCloudData() {
-    try {
-        const res = await fetch(PRIMARY_CLOUD_ENDPOINT);
-        if (!res.ok) return null;
-        const json = await res.json();
-        if (json && json.data) {
-            return {
-                orders: Array.isArray(json.data.orders) ? json.data.orders : [],
-                products: Array.isArray(json.data.products) ? json.data.products : []
-            };
-        }
-    } catch(e) {
-        console.warn('Primary cloud fetch error:', e);
-    }
-    return null;
-}
-
-async function saveCloudData(ordersList, productsList) {
-    try {
-        const payload = {
-            name: "Tra Sua Thuy Hang Orders & Menu",
-            data: {
-                orders: ordersList || [],
-                products: productsList || state.products || [],
-                updatedAt: new Date().toISOString()
-            }
-        };
-        await fetch(PRIMARY_CLOUD_ENDPOINT, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-        console.log('⚡ Saved to Cloud Relay Engine successfully');
-        return true;
-    } catch(e) {
-        console.warn('Save to cloud error:', e);
-        return false;
-    }
-}
-
-// Helper function to merge two order lists safely without losing any orders or status updates
-function mergeOrdersLists(listA, listB) {
-    const map = new Map();
-    (listA || []).forEach(o => {
-        if (o && o.id) map.set(o.id, { ...o });
-    });
-    (listB || []).forEach(o => {
-        if (o && o.id) {
-            if (!map.has(o.id)) {
-                map.set(o.id, { ...o });
-            } else {
-                const existing = map.get(o.id);
-                map.set(o.id, {
-                    ...existing,
-                    ...o,
-                    status: o.status || existing.status
-                });
-            }
-        }
-    });
-    const merged = Array.from(map.values());
-    merged.sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return timeB - timeA;
-    });
-    return merged;
-}
-
-// Push order to Cloud and safely merge with current cloud data
+// Helper function to push a newly created order to Cloud Relay instantly
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
     try {
-        let cloudData = await fetchCloudData();
-        let cloudOrders = cloudData ? cloudData.orders : [];
-        let cloudProducts = (cloudData && cloudData.products.length > 0) ? cloudData.products : state.products;
+        const payload = {
+            orderId: order.id,
+            id: order.id,
+            customerName: order.customerName || 'Khách hàng',
+            phone: order.phone || '',
+            address: order.address || '',
+            tableNumber: order.tableNumber || 'Mang đi',
+            items: order.items || [],
+            subtotal: order.subtotal || 0,
+            shippingFee: order.shippingFee || 0,
+            discount: order.discount || 0,
+            total: order.total || 0,
+            paymentMethod: order.paymentMethod || 'Tiền mặt',
+            paymentType: order.paymentType || 'cash',
+            status: order.status || 'pending',
+            createdAt: order.createdAt || getFormattedLocalDateTime(),
+            note: order.note || ''
+        };
 
-        const mergedOrders = mergeOrdersLists(cloudOrders, [...state.orders, order]);
-        await saveCloudData(mergedOrders, cloudProducts);
-        console.log('⚡ Order published & merged to Cloud Relay:', order.id);
+        const res = await fetch(CRUDCRUD_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            console.log('⚡ Order published to CrudCrud Cloud Relay:', order.id);
+        }
     } catch (err) {
-        console.warn('Cloud order push warning:', err);
+        console.warn('Cloud order push error:', err);
     }
 
     try {
@@ -2704,36 +2655,53 @@ async function pushOrderToCloud(order) {
 }
 
 async function pushAllOrdersToCloud() {
-    try {
-        const cloudData = await fetchCloudData();
-        const cloudOrders = cloudData ? cloudData.orders : [];
-        const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
-        await saveCloudData(mergedOrders, state.products);
-    } catch (e) {}
+    // Legacy compatibility stub
 }
 
 // Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices & Sync Status
 async function syncCloudOrders() {
     try {
-        const cloudData = await fetchCloudData();
-        if (!cloudData || !Array.isArray(cloudData.orders)) return;
+        const res = await fetch(CRUDCRUD_ENDPOINT);
+        if (!res.ok) return;
+
+        const cloudOrders = await res.json();
+        if (!Array.isArray(cloudOrders)) return;
 
         let hasNewOrder = false;
         let statusChanged = false;
 
-        cloudData.orders.forEach(cloudOrder => {
-            if (cloudOrder && cloudOrder.id) {
-                const localOrderIndex = state.orders.findIndex(o => o.id === cloudOrder.id);
+        cloudOrders.forEach(cloudOrder => {
+            const orderId = cloudOrder.orderId || cloudOrder.id;
+            if (orderId) {
+                const localOrderIndex = state.orders.findIndex(o => o.id === orderId || o.id === cloudOrder.id);
+                
                 if (localOrderIndex === -1) {
-                    state.orders.unshift(cloudOrder);
+                    const formattedOrder = {
+                        id: orderId,
+                        customerName: cloudOrder.customerName || 'Khách quét QR',
+                        phone: cloudOrder.phone || '',
+                        address: cloudOrder.address || '',
+                        tableNumber: cloudOrder.tableNumber || 'Mang đi',
+                        items: Array.isArray(cloudOrder.items) ? cloudOrder.items : [],
+                        subtotal: cloudOrder.subtotal || cloudOrder.total || 0,
+                        shippingFee: cloudOrder.shippingFee || 0,
+                        discount: cloudOrder.discount || 0,
+                        total: cloudOrder.total || 0,
+                        paymentMethod: cloudOrder.paymentMethod || 'Tiền mặt',
+                        paymentType: cloudOrder.paymentType || 'cash',
+                        status: cloudOrder.status || 'pending',
+                        createdAt: cloudOrder.createdAt || getFormattedLocalDateTime(),
+                        note: cloudOrder.note || ''
+                    };
+
+                    state.orders.unshift(formattedOrder);
                     hasNewOrder = true;
 
-                    if (state.currentRole === 'admin') {
-                        playOrderAlertSound();
-                        showToast(`🔔 ĐƠN HÀNG MỚI MÃ QR: #${cloudOrder.id} - ${cloudOrder.customerName} (${cloudOrder.tableNumber || 'Tại Bàn'})`);
-                    }
+                    // Play chime sound and toast notification
+                    playOrderAlertSound();
+                    showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
                 } else {
-                    if (state.orders[localOrderIndex].status !== cloudOrder.status) {
+                    if (state.orders[localOrderIndex].status !== cloudOrder.status && cloudOrder.status) {
                         state.orders[localOrderIndex].status = cloudOrder.status;
                         statusChanged = true;
                     }
@@ -2741,15 +2709,9 @@ async function syncCloudOrders() {
             }
         });
 
-        const missingInCloud = state.orders.some(o => !cloudData.orders.some(co => co.id === o.id));
-
         if (hasNewOrder || statusChanged) {
             saveStateToStorage();
             refreshRealTimeUI();
-        }
-
-        if (missingInCloud) {
-            pushAllOrdersToCloud();
         }
     } catch (err) {
         console.warn('Cloud order sync error:', err);
@@ -2758,16 +2720,15 @@ async function syncCloudOrders() {
 
 // Manual Sync Button for Admin
 async function manualSyncCloudOrders() {
-    showToast('🔄 Đang đồng bộ đơn hàng từ Cloud...');
+    showToast('🔄 Đang kiểm tra đơn hàng từ Cloud...');
     await syncCloudOrders();
-    await pushAllOrdersToCloud();
-    showToast('✅ Đã đồng bộ 2 chiều thành công đơn hàng giữa máy tính và điện thoại!');
+    showToast('✅ Đã đồng bộ thành công tất cả đơn hàng mã QR!');
 }
 
 // Start background Cloud Polling loop and BroadcastChannel listener
 function startCloudOrderSync() {
     syncCloudOrders();
-    setInterval(syncCloudOrders, 2000);
+    setInterval(syncCloudOrders, 3000);
 
     if (window.BroadcastChannel) {
         try {
@@ -2779,10 +2740,8 @@ function startCloudOrderSync() {
                         state.orders.unshift(newOrd);
                         saveStateToStorage();
                         refreshRealTimeUI();
-                        if (state.currentRole === 'admin') {
-                            playOrderAlertSound();
-                            showToast(`🔔 CÓ ĐƠN HÀNG MỚI: #${newOrd.id} từ ${newOrd.customerName}`);
-                        }
+                        playOrderAlertSound();
+                        showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${newOrd.id} từ ${newOrd.customerName} (${newOrd.tableNumber || 'Tại bàn'})`);
                     }
                 }
             };
@@ -2795,36 +2754,11 @@ function startCloudOrderSync() {
    ========================================================================== */
 
 async function pushProductsToCloud() {
-    if (!state.products) return;
-    try {
-        const cloudData = await fetchCloudData();
-        const cloudOrders = cloudData ? cloudData.orders : state.orders;
-        const mergedOrders = mergeOrdersLists(cloudOrders, state.orders);
-        await saveCloudData(mergedOrders, state.products);
-        console.log('⚡ Menu products published to Cloud Relay');
-    } catch (e) {
-        console.warn('Cloud menu push error:', e);
-    }
+    // Menu stub
 }
 
 async function syncCloudProducts() {
-    try {
-        const cloudData = await fetchCloudData();
-        if (cloudData && Array.isArray(cloudData.products) && cloudData.products.length > 0) {
-            const cloudProds = cloudData.products;
-            const currentSig = JSON.stringify(state.products.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
-            const cloudSig = JSON.stringify(cloudProds.map(p => ({ id: p.id, name: p.name, price: p.price, stock: p.stock })));
-
-            if (currentSig !== cloudSig) {
-                state.products = cloudProds;
-                saveStateToStorage();
-                renderProducts();
-                if (state.currentRole === 'admin') {
-                    renderAdminProducts();
-                }
-            }
-        }
-    } catch (e) {}
+    // Menu stub
 }
 
 function startCloudProductSync() {
