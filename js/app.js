@@ -5,6 +5,7 @@
 // Global State
 let state = {
     currentRole: 'customer', // 'customer' | 'admin'
+    isSoundEnabled: localStorage.getItem('boba_sound_enabled') !== 'false',
     tableNumber: 'Mang đi', // Default or parsed from URL parameter e.g. ?ban=5
     isTakeaway: true,
     currentCategory: 'all',
@@ -1922,6 +1923,7 @@ function renderAdminDashboard() {
     renderAdminOrders();
     renderAdminProducts();
     renderQRTableSection();
+    updateSoundButtonUI();
 }
 
 function switchAdminTab(sectionId) {
@@ -2582,7 +2584,36 @@ function unlockAudioContext() {
 document.addEventListener('click', unlockAudioContext);
 document.addEventListener('touchstart', unlockAudioContext);
 
+function toggleOrderSound() {
+    state.isSoundEnabled = !state.isSoundEnabled;
+    localStorage.setItem('boba_sound_enabled', state.isSoundEnabled ? 'true' : 'false');
+    updateSoundButtonUI();
+
+    if (state.isSoundEnabled) {
+        playOrderAlertSound();
+        showToast('🔊 Đã BẬT âm thanh chuông báo nổ đơn hàng!');
+    } else {
+        showToast('🔇 Đã TẮT âm thanh chuông báo!');
+    }
+}
+
+function updateSoundButtonUI() {
+    const btns = document.querySelectorAll('.toggle-sound-btn-ui');
+    btns.forEach(btn => {
+        if (state.isSoundEnabled) {
+            btn.style.background = '#e67e22';
+            btn.style.borderColor = '#e67e22';
+            btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Chuông: BẬT';
+        } else {
+            btn.style.background = '#7f8c8d';
+            btn.style.borderColor = '#7f8c8d';
+            btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Chuông: TẮT';
+        }
+    });
+}
+
 function playOrderAlertSound() {
+    if (state.isSoundEnabled === false) return;
     try {
         unlockAudioContext();
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
