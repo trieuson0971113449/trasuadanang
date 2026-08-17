@@ -2601,12 +2601,54 @@ function playOrderAlertSound() {
 }
 
 /* ==========================================================================
-   CROSS-DEVICE REAL-TIME CLOUD ENGINE (CrudCrud Instant QR Sync)
+   CROSS-DEVICE REAL-TIME CLOUD ENGINE (ntfy.sh Instant Push Stream & Sync)
    ========================================================================== */
 
-const CRUDCRUD_ENDPOINT = 'https://crudcrud.com/api/9760d75f68d947508cbf467aa085fdae/orders';
+const NTFY_TOPIC_ENDPOINT = 'https://ntfy.sh/trasua_thuyhang_orders_v600_app';
 
-// Helper function to push a newly created order to Cloud Relay instantly
+// Process and store any order arriving from Cloud Stream or Polling
+function processIncomingCloudOrder(cloudOrder) {
+    if (!cloudOrder || (!cloudOrder.id && !cloudOrder.orderId)) return;
+    const orderId = cloudOrder.orderId || cloudOrder.id;
+
+    const localOrderIndex = state.orders.findIndex(o => o.id === orderId);
+
+    if (localOrderIndex === -1) {
+        const formattedOrder = {
+            id: orderId,
+            customerName: cloudOrder.customerName || 'Khách quét QR',
+            phone: cloudOrder.phone || '',
+            address: cloudOrder.address || '',
+            tableNumber: cloudOrder.tableNumber || 'Mang đi',
+            items: Array.isArray(cloudOrder.items) ? cloudOrder.items : [],
+            subtotal: cloudOrder.subtotal || cloudOrder.total || 0,
+            shippingFee: cloudOrder.shippingFee || 0,
+            discount: cloudOrder.discount || 0,
+            total: cloudOrder.total || 0,
+            paymentMethod: cloudOrder.paymentMethod || 'Tiền mặt',
+            paymentType: cloudOrder.paymentType || 'cash',
+            status: cloudOrder.status || 'pending',
+            createdAt: cloudOrder.createdAt || getFormattedLocalDateTime(),
+            note: cloudOrder.note || ''
+        };
+
+        state.orders.unshift(formattedOrder);
+        saveStateToStorage();
+        refreshRealTimeUI();
+
+        // Sound chime & toast alert notification
+        playOrderAlertSound();
+        showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
+    } else {
+        if (state.orders[localOrderIndex].status !== cloudOrder.status && cloudOrder.status) {
+            state.orders[localOrderIndex].status = cloudOrder.status;
+            saveStateToStorage();
+            refreshRealTimeUI();
+        }
+    }
+}
+
+// Push order to central Cloud Relay instantly when customer submits order on phone
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
@@ -2630,16 +2672,18 @@ async function pushOrderToCloud(order) {
             note: order.note || ''
         };
 
-        const res = await fetch(CRUDCRUD_ENDPOINT, {
+        const res = await fetch(NTFY_TOPIC_ENDPOINT, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Title': `DON HANG MOI ${order.tableNumber || 'MANG DI'}`,
+                'Tags': 'coffee,tada',
+                'Priority': 'high'
             },
             body: JSON.stringify(payload)
         });
 
         if (res.ok) {
-            console.log('⚡ Order published to CrudCrud Cloud Relay:', order.id);
+            console.log('⚡ Order published instantly to ntfy Cloud Stream:', order.id);
         }
     } catch (err) {
         console.warn('Cloud order push error:', err);
@@ -2658,61 +2702,25 @@ async function pushAllOrdersToCloud() {
     // Legacy compatibility stub
 }
 
-// Poll Cloud Engine to Fetch Orders Placed by Customers on Other Devices & Sync Status
+// Poll Cloud Engine to Fetch Orders Placed by Customers in the last 24h
 async function syncCloudOrders() {
     try {
-        const res = await fetch(CRUDCRUD_ENDPOINT);
+        const res = await fetch(`${NTFY_TOPIC_ENDPOINT}/json?poll=1&since=24h`);
         if (!res.ok) return;
 
-        const cloudOrders = await res.json();
-        if (!Array.isArray(cloudOrders)) return;
+        const text = await res.text();
+        if (!text || !text.trim()) return;
 
-        let hasNewOrder = false;
-        let statusChanged = false;
-
-        cloudOrders.forEach(cloudOrder => {
-            const orderId = cloudOrder.orderId || cloudOrder.id;
-            if (orderId) {
-                const localOrderIndex = state.orders.findIndex(o => o.id === orderId || o.id === cloudOrder.id);
-                
-                if (localOrderIndex === -1) {
-                    const formattedOrder = {
-                        id: orderId,
-                        customerName: cloudOrder.customerName || 'Khách quét QR',
-                        phone: cloudOrder.phone || '',
-                        address: cloudOrder.address || '',
-                        tableNumber: cloudOrder.tableNumber || 'Mang đi',
-                        items: Array.isArray(cloudOrder.items) ? cloudOrder.items : [],
-                        subtotal: cloudOrder.subtotal || cloudOrder.total || 0,
-                        shippingFee: cloudOrder.shippingFee || 0,
-                        discount: cloudOrder.discount || 0,
-                        total: cloudOrder.total || 0,
-                        paymentMethod: cloudOrder.paymentMethod || 'Tiền mặt',
-                        paymentType: cloudOrder.paymentType || 'cash',
-                        status: cloudOrder.status || 'pending',
-                        createdAt: cloudOrder.createdAt || getFormattedLocalDateTime(),
-                        note: cloudOrder.note || ''
-                    };
-
-                    state.orders.unshift(formattedOrder);
-                    hasNewOrder = true;
-
-                    // Play chime sound and toast notification
-                    playOrderAlertSound();
-                    showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
-                } else {
-                    if (state.orders[localOrderIndex].status !== cloudOrder.status && cloudOrder.status) {
-                        state.orders[localOrderIndex].status = cloudOrder.status;
-                        statusChanged = true;
-                    }
+        const lines = text.trim().split('\n').filter(Boolean);
+        lines.forEach(line => {
+            try {
+                const parsedLine = JSON.parse(line);
+                if (parsedLine && parsedLine.message) {
+                    const cloudOrder = JSON.parse(parsedLine.message);
+                    processIncomingCloudOrder(cloudOrder);
                 }
-            }
+            } catch(e) {}
         });
-
-        if (hasNewOrder || statusChanged) {
-            saveStateToStorage();
-            refreshRealTimeUI();
-        }
     } catch (err) {
         console.warn('Cloud order sync error:', err);
     }
@@ -2725,24 +2733,37 @@ async function manualSyncCloudOrders() {
     showToast('✅ Đã đồng bộ thành công tất cả đơn hàng mã QR!');
 }
 
-// Start background Cloud Polling loop and BroadcastChannel listener
+// Start background Cloud Stream (SSE) & polling loop
 function startCloudOrderSync() {
+    // 1. Initial poll for last 24h orders
     syncCloudOrders();
-    setInterval(syncCloudOrders, 3000);
 
+    // 2. Real-time EventSource (Server-Sent Events) Stream (< 100ms instant delivery)
+    if (window.EventSource) {
+        try {
+            const es = new EventSource(`${NTFY_TOPIC_ENDPOINT}/json`);
+            es.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data && data.message) {
+                        const cloudOrder = JSON.parse(data.message);
+                        processIncomingCloudOrder(cloudOrder);
+                    }
+                } catch(e) {}
+            };
+        } catch(e) {}
+    }
+
+    // 3. Fallback polling every 5 seconds
+    setInterval(syncCloudOrders, 5000);
+
+    // 4. Same-device BroadcastChannel
     if (window.BroadcastChannel) {
         try {
             const bc = new BroadcastChannel('boba_cloud_orders_channel');
             bc.onmessage = (event) => {
                 if (event.data && event.data.type === 'NEW_ORDER' && event.data.order) {
-                    const newOrd = event.data.order;
-                    if (!state.orders.some(o => o.id === newOrd.id)) {
-                        state.orders.unshift(newOrd);
-                        saveStateToStorage();
-                        refreshRealTimeUI();
-                        playOrderAlertSound();
-                        showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${newOrd.id} từ ${newOrd.customerName} (${newOrd.tableNumber || 'Tại bàn'})`);
-                    }
+                    processIncomingCloudOrder(event.data.order);
                 }
             };
         } catch (e) {}
@@ -2763,7 +2784,7 @@ async function syncCloudProducts() {
 
 function startCloudProductSync() {
     syncCloudProducts();
-    setInterval(syncCloudProducts, 2000);
+    setInterval(syncCloudProducts, 5000);
 }
 
 // Manual Sync Stock To Customers for Admin
