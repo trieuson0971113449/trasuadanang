@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.4.2`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.5.0`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -118,6 +118,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Loại bỏ thanh tìm kiếm & danh mục danh mục đồ uống (`category-section`).
   2. Loại bỏ khối banner "Theo Dõi Trạng Thái Đơn Hàng" (`order-tracking-section`).
   3. Chuyển neo điều hướng `id="menu"` về khối Thực Đơn Sản Phẩm chính (`products-section`) giúp giao diện tinh gọn, trực quan và tải nhanh hơn.
+
+### ✨ Yêu cầu 8 (v6.5.0): Tối ưu Modal Chọn Món — Loại bỏ ảnh banner lớn & Tích hợp bộ tăng/giảm số lượng ngay trên đầu
+- **Thực hiện:**
+  1. Loại bỏ hình ảnh banner cao 220px (`modal-header-img`) và mô tả dài (`modal-item-desc`) trong cửa sổ tùy chỉnh món.
+  2. Đưa tên món, giá gốc và **trình tăng/giảm số lượng trực quan `[- 1 +]`** lên ngay thanh header đầu cửa sổ popup.
+  3. Khách hàng không cần phải cuộn/vuốt màn hình xuống để tìm nút tăng giảm số lượng hay các tùy chọn size/đường/đá nữa.
 
 ---
 

@@ -931,10 +931,19 @@ function renderCustomModalContent() {
     const modalBody = document.getElementById('modal-content-container');
     modalBody.innerHTML = `
         <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        <img src="${product.image}" alt="${product.name}" class="modal-header-img">
-        <div class="modal-body">
-            <h2 class="modal-item-title">${product.name}</h2>
-            <p class="modal-item-desc">${product.description}</p>
+        <div class="modal-body" style="padding: 20px 24px;">
+            <!-- Compact Top Header: Product Name + Base Price & Intuitive Top Quantity Controls -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+                <div style="flex: 1;">
+                    <h2 class="modal-item-title" style="margin: 0 0 4px 0; font-size: 1.25rem; color: var(--primary);">${product.name}</h2>
+                    <div style="font-weight: 800; font-size: 1.1rem; color: var(--accent-red);">${formatCurrency(product.price)}</div>
+                </div>
+                <div class="qty-control" style="margin: 0; background: var(--light-bg); padding: 4px 8px; border-radius: 20px; border: 1px solid var(--border-color);">
+                    <button class="qty-btn" type="button" onclick="updateCustomQty(-1)" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                    <span class="qty-val custom-qty-val" id="custom-qty-val">${state.customQty}</span>
+                    <button class="qty-btn" type="button" onclick="updateCustomQty(1)" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
 
             <!-- Size Selection -->
             <div class="custom-group">
@@ -1009,9 +1018,9 @@ function renderCustomModalContent() {
 
             <!-- Modal Footer Action -->
             <div class="modal-footer-action">
-                <div class="qty-control">
+                <div class="qty-control" style="display:none;">
                     <button class="qty-btn" type="button" onclick="updateCustomQty(-1)"><i class="fa-solid fa-minus"></i></button>
-                    <span class="qty-val" id="custom-qty-val">${state.customQty}</span>
+                    <span class="qty-val custom-qty-val" id="custom-qty-val">${state.customQty}</span>
                     <button class="qty-btn" type="button" onclick="updateCustomQty(1)"><i class="fa-solid fa-plus"></i></button>
                 </div>
                 ${product.stock > 0 ? `
@@ -1040,22 +1049,23 @@ function closeModal() {
 
 function selectCustomSize(sizeId) {
     state.selectedSize = sizeId;
-    updateCustomModalUI();
+    renderCustomModalContent();
 }
 
 function selectCustomSugar(sugarId) {
     state.selectedSugar = sugarId;
-    updateCustomModalUI();
+    renderCustomModalContent();
 }
 
 function selectCustomIce(iceId) {
     state.selectedIce = iceId;
-    updateCustomModalUI();
+    renderCustomModalContent();
 }
 
 function toggleToppingSelection(toppingId) {
-    if (state.selectedToppings.includes(toppingId)) {
-        state.selectedToppings = state.selectedToppings.filter(id => id !== toppingId);
+    const idx = state.selectedToppings.indexOf(toppingId);
+    if (idx > -1) {
+        state.selectedToppings.splice(idx, 1);
     } else {
         state.selectedToppings.push(toppingId);
     }
@@ -1073,8 +1083,10 @@ function updateCustomQty(delta) {
     }
 
     state.customQty = Math.max(1, Math.min(maxStock, state.customQty + delta));
-    document.getElementById('custom-qty-val').innerText = state.customQty;
-    document.getElementById('custom-total-price').innerText = formatCurrency(calculateCustomPrice());
+    document.querySelectorAll('.custom-qty-val, #custom-qty-val').forEach(el => {
+        el.innerText = state.customQty;
+    });
+    updateCustomModalUI();
 }
 
 function calculateCustomPrice() {
