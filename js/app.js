@@ -1505,7 +1505,7 @@ function processCheckout(e) {
         total: total,
         paymentMethod: isOnline ? 'Thanh toán ngay (Chuyển khoản VietQR)' : 'Thanh toán sau (Tiền mặt / Tại quầy)',
         paymentType: paymentType,
-        paymentStatus: isOnline ? 'da_chuyen_khoan' : 'chua_thanh_toan',
+        paymentStatus: isOnline ? 'cho_doi_soat' : 'chua_thanh_toan',
         status: 'pending',
         isStockDeducted: false,
         createdAt: getFormattedLocalDateTime(),
@@ -2029,8 +2029,8 @@ function renderAdminOrders() {
                 <td><strong style="color:var(--primary); font-size:1.05rem;">${formatCurrency(order.total)}</strong></td>
                 <td>
                     ${isOnline ? `
-                        <span class="badge badge-green" style="font-size:0.78rem; padding:5px 10px;" title="Khách chọn thanh toán qua VietQR API">
-                            <i class="fa-solid fa-qrcode"></i> VietQR (Trả ngay)
+                        <span class="badge ${order.paymentStatus === 'cho_doi_soat' ? 'badge-gold' : 'badge-green'}" style="font-size:0.78rem; padding:5px 10px;" title="${order.paymentStatus === 'cho_doi_soat' ? 'Đang chờ Admin đối soát tài khoản' : 'Đã nhận chuyển khoản'}">
+                            <i class="fa-solid fa-qrcode"></i> VietQR: ${order.paymentStatus === 'cho_doi_soat' ? 'Chờ đối soát' : 'Đã nhận tiền'}
                         </span>
                     ` : `
                         <span class="badge badge-gold" style="font-size:0.78rem; padding:5px 10px;" title="Khách chọn thanh toán bằng tiền mặt tại quầy / tại bàn">
@@ -2049,6 +2049,11 @@ function renderAdminOrders() {
                 </td>
                 <td>
                     <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        ${order.paymentType === 'online' && order.paymentStatus === 'cho_doi_soat' ? `
+                            <button class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background: #27ae60; border-color: #27ae60; font-weight: bold; border-radius: 8px;" onclick="confirmAdminReceivedPayment('${order.id}')" title="Xác nhận đã nhận tiền chuyển khoản thành công">
+                                <i class="fa-solid fa-circle-check"></i> Xác nhận nhận tiền
+                            </button>
+                        ` : ''}
                         <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="renderOrderTracker('${order.id}')" title="Xem chi tiết dòng thời gian đơn hàng">
                             <i class="fa-solid fa-eye"></i> Xem
                         </button>
@@ -2694,9 +2699,14 @@ function processIncomingCloudOrder(cloudOrder) {
         saveStateToStorage();
         refreshRealTimeUI();
 
-        // Sound chime & toast alert notification
-        playOrderAlertSound();
-        showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
+        // Sound chime & toast alert notification (only alert if not online awaiting verification)
+        const isOnlineAwaitingPayment = formattedOrder.paymentType === 'online' && formattedOrder.paymentStatus === 'cho_doi_soat';
+        if (!isOnlineAwaitingPayment) {
+            playOrderAlertSound();
+            showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
+        } else {
+            console.log(`📩 Nhận đơn chuyển khoản #${formattedOrder.id} - Đang chờ Admin xác nhận tiền.`);
+        }
     } else {
         if (cloudOrder.status && state.orders[localOrderIndex].status !== cloudOrder.status) {
             state.orders[localOrderIndex].status = cloudOrder.status;
@@ -3169,5 +3179,24 @@ function setQRBaseUrlToLive() {
         inputEl.value = 'https://trieuson0971113449.github.io/trasuadanang/';
         renderQRTableSection();
         showToast('📍 Đã đổi sang link Website Live để in/quét thực tế!', 'success');
+    }
+}
+
+async function confirmAdminReceivedPayment(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (confirm(`Xác nhận đã nhận đủ số tiền ${formatCurrency(order.total)} cho đơn hàng #${orderId}?`)) {
+        order.paymentStatus = 'da_chuyen_khoan';
+        order.status = 'preparing'; // Auto advance to preparing
+        saveStateToStorage();
+        refreshRealTimeUI();
+
+        // Play alert sound "nổ đơn" now!
+        playOrderAlertSound();
+        showToast(`🔔 ĐÃ NỔ ĐƠN #${orderId} - Khách đã thanh toán chuyển khoản thành công!`, 'success');
+
+        // Push the update to cloud so customer phone gets updated
+        await pushOrderToCloud(order);
     }
 }

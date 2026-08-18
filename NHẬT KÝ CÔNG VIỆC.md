@@ -198,6 +198,14 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Trong hàm `selectPaymentOption` ở `js/app.js`, khi khách chọn hình thức "Thanh toán sau (Tiền mặt / Tại quầy)", chúng tôi ẩn hoàn toàn khung hiển thị thông tin (`qrBox.style.display = 'none'` và xóa nội dung HTML bên trong).
   2. Việc này giúp loại bỏ khung hộp màu xanh lá cây cồng kềnh, làm cho giao diện Modal Thanh Toán cực kỳ gọn gàng, thoáng mắt và trực quan hơn.
 
+### ⚡ Yêu cầu 17 (v7.7.0): Kiểm soát nổ đơn chuyển khoản — Chỉ nổ chuông báo sau khi Admin đã nhận tiền và xác nhận
+- **Thực hiện:**
+  1. Khi khách hàng bấm "Thanh toán ngay qua Chuyển Khoản", trang web của khách sẽ hiển thị đầy đủ thông tin VietQR để khách quét mã và thực hiện giao dịch chuyển khoản.
+  2. Khi khách bấm gửi đơn, đơn hàng sẽ được gửi lên hệ thống trung gian với trạng thái `paymentStatus: 'cho_doi_soat'`.
+  3. Để tránh khách hàng click giả mạo hoặc chưa chuyển tiền mà Admin đã chuẩn bị đồ uống, hệ thống được lập trình **không phát ra âm thanh thông báo nổ đơn ngay lập tức** đối với đơn chuyển khoản.
+  4. Đơn hàng chuyển khoản sẽ xuất hiện trên màn hình Admin với nhãn trạng thái màu cam: **`VietQR: Chờ đối soát`**, đi kèm nút nổi bật màu xanh lá: **`✔ Xác nhận nhận tiền`**.
+  5. Sau khi kiểm tra điện thoại của mình và thấy tiền đã về tài khoản, Admin bấm nút **`Xác nhận nhận tiền`**. Hệ thống sẽ tự động cập nhật trạng thái đơn sang **`Đang pha chế`**, chuyển trạng thái thanh toán thành **`Đã chuyển khoản`**, phát ra âm thanh chuông báo **"Nổ Đơn"** và đồng bộ ngay lập tức để màn hình khách hàng cập nhật tiến trình.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
