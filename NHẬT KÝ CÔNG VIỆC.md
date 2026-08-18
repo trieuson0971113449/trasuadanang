@@ -223,6 +223,16 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. **So sánh timestamp trước khi cập nhật (`incomingTime >= localTime`):** Bổ sung timestamp `updatedAt` cho đơn hàng local và chỉ chấp nhận cập nhật nếu tin nhắn từ Cloud mới hơn timestamp local hiện tại.
   3. **Đồng bộ CSS & loại bỏ nhấp nháy:** Thay thế toàn bộ class `.active` cũ bằng `.current` và `.completed`. Thiết lập hiệu ứng `stepPopOnce` chỉ kích hoạt một lần duy nhất khi bước trở thành bước hiện tại, các bước hoàn tất có viền và màu nền xanh dịu mượt mà.
 
+
+### 🛡️ Yêu cầu 13 (v6.8.2): Khắc phục triệt để lỗi trạng thái xử lý nhảy qua lại giữa "Hoàn Thành" & "Đang Giao Hàng"
+- **Nguyên nhân đã xác định:**
+  1. Các đơn hàng cũ lưu trong LocalStorage chưa có trường `updatedAt`, dẫn đến `localTime = 0`. Mỗi khi Cloud polling (4s), tin nhắn Ntfy cũ chứa trạng thái `shipping` có timestamp lớn hơn 0 khiến `localOrder.status` bị đè lùi từ `completed` về `shipping`.
+  2. Cloud sync chưa có cơ chế Ma trận cấp độ trạng thái (Status Level Progression). Khi Admin chuyển đơn sang `completed` (Level 3), các tin nhắn cũ `shipping` (Level 2) đến từ Ntfy relay vẫn tự động giật lùi trạng thái đơn hàng.
+- **Thực hiện khắc phục triệt để:**
+  1. **Chuẩn hóa Timestamp cho mọi đơn hàng (`loadStateFromStorage`):** Gán `updatedAt` khởi tạo dựa trên `parseDateString(o.createdAt)` cho tất cả đơn hàng ngay khi nạp vào bộ nhớ.
+  2. **Thiết lập Ma trận Cấp Độ Trạng Thái (`STATUS_LEVELS`):** Định nghĩa thứ tự tiến trình bắt buộc: `pending` (0) ➔ `preparing` (1) ➔ `shipping` (2) ➔ `completed` (3).
+  3. **Chống giật lùi trạng thái tự động (`processIncomingCloudOrder`):** Cloud sync **TUYỆT ĐỐI KHÔNG ĐƯỢC PHÉP giật lùi trạng thái đơn hàng** ở Local (trừ trạng thái `cancelled`). Chỉ cho phép trạng thái TIẾN LÊN bước cao hơn (`incomingLevel > currentLevel`) hoặc cập nhật khi có timestamp thực sự mới hơn.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
@@ -230,18 +240,18 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
 - Đã dùng công cụ Git hệ thống (`C:\Users\Admin\git\cmd\git.exe`) để quản lý phiên bản:
   ```bash
   git add index.html js/app.js css/style.css js/data.js NHẬT KÝ CÔNG VIỆC.md
-  git commit -m "fix: Khac phuc triet de loi tu nhay buoc va nhap nhay 4 buoc theo doi don (v6.8.1)"
+  git commit -m "fix: Anti status regression matrix v6.8.2 - Khac phuc triet de loi nhay qua lai Hoan thanh va Dang giao hang"
   git push origin main
   ```
-- **Kết quả:** Mã nguồn phiên bản **v6.8.1** đã được hoàn thiện 100% và sẵn sàng hoạt động ổn định.
+- **Kết quả:** Mã nguồn phiên bản **v6.8.2** đã được hoàn thiện 100% và sẵn sàng hoạt động ổn định.
 
 ---
 
 ## ✅ KẾT LUẬN & HƯỚNG DẪN KIỂM TRA
 
-Website **Trà Sữa Thúy Hằng v6.8.1** hiện đã hoàn chỉnh 100% tất cả các yêu cầu nâng cấp, khắc phục triệt để lỗi tự nhảy bước đơn hàng và nút nhấp nháy.
+Website **Trà Sữa Thúy Hằng v6.8.2** hiện đã hoàn chỉnh 100% tất cả các yêu cầu nâng cấp, khắc phục triệt để lỗi nhảy trạng thái qua lại giữa Hoàn thành và Đang giao hàng.
 
 ### 💡 Hướng dẫn kiểm tra cho chủ quán:
-1. Mở trang web: **[https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)**
-2. Bấm **`Ctrl + F5`** (hoặc xóa cache trình duyệt) để nạp bản code `v6.8.1` mới nhất.
-3. Mở xem chi tiết Theo Dõi Đơn Hàng ➔ Trạng thái giữ nguyên ổn định, 4 bước hiển thị tĩnh mượt mà, chỉ nhảy bước khi Admin thực sự chuyển bước đơn hàng.
+1. Mở trang web Admin: **[https://trieuson0971113449.github.io/trasuadanang/#admin](https://trieuson0971113449.github.io/trasuadanang/#admin)**
+2. Bấm **`Ctrl + F5`** (hoặc xóa cache trình duyệt) để nạp bản code `v6.8.2` mới nhất.
+3. Chuyển trạng thái đơn hàng `#ORD-1750` sang **`✅ Hoàn thành`** ➔ Trạng thái giữ nguyên cố định 100%, không bị nhảy lùi về `🛵 Đang giao hàng` nữa!

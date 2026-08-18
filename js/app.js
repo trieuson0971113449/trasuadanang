@@ -113,9 +113,12 @@ function loadStateFromStorage() {
     try { storedCart = JSON.parse(localStorage.getItem('boba_cart')); } catch(e){}
     state.cart = Array.isArray(storedCart) ? storedCart : [];
 
-    let storedOrders = null;
-    try { storedOrders = JSON.parse(localStorage.getItem('boba_orders')); } catch(e){}
     state.orders = (storedOrders !== null && Array.isArray(storedOrders)) ? storedOrders : DEFAULT_ORDERS;
+    state.orders.forEach(o => {
+        if (!o.updatedAt) {
+            o.updatedAt = parseDateString(o.createdAt).getTime() || Date.now();
+        }
+    });
 
     let storedReviews = null;
     try { storedReviews = JSON.parse(localStorage.getItem('boba_reviews')); } catch(e){}
@@ -2677,13 +2680,30 @@ function savePendingPushes() {
     } catch (e) {}
 }
 
+const STATUS_LEVELS = {
+    pending: 0,
+    preparing: 1,
+    shipping: 2,
+    completed: 3,
+    cancelled: 4
+};
+
+function getStatusLevel(status) {
+    return STATUS_LEVELS[status] !== undefined ? STATUS_LEVELS[status] : -1;
+}
+
 // Process and store any order arriving from Cloud Stream or Polling
 function processIncomingCloudOrder(cloudOrder, msgTime = 0) {
     if (!cloudOrder || (!cloudOrder.id && !cloudOrder.orderId)) return;
     const orderId = cloudOrder.orderId || cloudOrder.id;
 
     const localOrderIndex = state.orders.findIndex(o => o.id === orderId);
-    const incomingTime = cloudOrder.updatedAt || msgTime || Date.now();
+
+    // Chuẩn hóa timestamp của tin nhắn cloud (luôn ở dạng số milliseconds)
+    let incomingTime = cloudOrder.updatedAt || msgTime || Date.now();
+    if (typeof incomingTime !== 'number') {
+        incomingTime = Number(incomingTime) || Date.now();
+    }
 
     if (localOrderIndex === -1) {
         const formattedOrder = {
@@ -2720,24 +2740,49 @@ function processIncomingCloudOrder(cloudOrder, msgTime = 0) {
         }
     } else {
         const localOrder = state.orders[localOrderIndex];
-        const localTime = localOrder.updatedAt || 0;
+        let localTime = localOrder.updatedAt || 0;
+        if (typeof localTime !== 'number') {
+            localTime = Number(localTime) || 0;
+        }
 
-        // Chỉ cập nhật khi tin nhắn cloud mới hơn hoặc có thời gian tương đương
-        if (incomingTime >= localTime) {
-            let stateChanged = false;
-            if (cloudOrder.status && localOrder.status !== cloudOrder.status) {
-                localOrder.status = cloudOrder.status;
-                stateChanged = true;
+        const currentLevel = getStatusLevel(localOrder.status);
+        const incomingLevel = getStatusLevel(cloudOrder.status);
+
+        let shouldUpdateStatus = false;
+
+        if (cloudOrder.status && cloudOrder.status !== localOrder.status) {
+            // 1. Trạng thái từ Cloud là HỦY ĐƠN -> Luôn chấp nhận
+            if (cloudOrder.status === 'cancelled') {
+                shouldUpdateStatus = true;
             }
-            if (cloudOrder.paymentStatus && localOrder.paymentStatus !== cloudOrder.paymentStatus) {
+            // 2. Trạng thái từ Cloud TIẾN LÊN bước cao hơn (ví dụ shipping -> completed) -> Luôn chấp nhận
+            else if (incomingLevel > currentLevel) {
+                shouldUpdateStatus = true;
+            }
+            // 3. Nếu cùng cấp độ hoặc tiến tới, chỉ cập nhật nếu timestamp cloud thực sự MỚI HƠN hẳn local
+            else if (incomingTime > localTime && incomingLevel >= currentLevel) {
+                shouldUpdateStatus = true;
+            }
+            // NÓI KHÔNG: Tự động giật lùi trạng thái từ completed về shipping/preparing/pending từ tin nhắn Cloud cũ
+        }
+
+        let stateChanged = false;
+        if (shouldUpdateStatus) {
+            localOrder.status = cloudOrder.status;
+            stateChanged = true;
+        }
+
+        if (cloudOrder.paymentStatus && localOrder.paymentStatus !== localOrder.paymentStatus) {
+            if (incomingTime >= localTime) {
                 localOrder.paymentStatus = cloudOrder.paymentStatus;
                 stateChanged = true;
             }
-            if (stateChanged) {
-                localOrder.updatedAt = incomingTime;
-                saveStateToStorage();
-                refreshRealTimeUI();
-            }
+        }
+
+        if (stateChanged) {
+            localOrder.updatedAt = Math.max(localTime, incomingTime, Date.now());
+            saveStateToStorage();
+            refreshRealTimeUI();
         }
     }
 }
@@ -2855,7 +2900,7 @@ async function syncCloudOrders() {
                         }
                         if (typeof cloudOrder === 'object' && cloudOrder && (cloudOrder.id || cloudOrder.orderId)) {
                             const id = cloudOrder.id || cloudOrder.orderId;
-                            const msgTime = cloudOrder.updatedAt || (parsedLine.time ? parsedLine.time * 1000 : 0);
+                            const msgTime = Number(cloudOrder.updatedAt) || (parsedLine.time ? parsedLine.time * 1000 : 0);
 
                             if (!latestOrdersMap.has(id) || msgTime > latestOrdersMap.get(id).timestamp) {
                                 latestOrdersMap.set(id, { order: cloudOrder, timestamp: msgTime });
