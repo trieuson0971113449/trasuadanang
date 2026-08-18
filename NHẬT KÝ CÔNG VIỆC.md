@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.4.0`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.4.1`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -103,6 +103,15 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   4. **Tự Động Kết Nối Lại Stream (Auto Reconnect SSE):** Bổ sung trình xử lý `onerror` cho `EventSource` để tự khôi phục kết nối luồng nổ đơn khi mạng bị gián đoạn.
   5. **Bảo tồn trạng thái mảng đơn hàng rỗng:** Sửa `loadStateFromStorage` để không bị đè đơn hàng mẫu khi mở trang.
   6. **Cập nhật Cache-Buster v6.4.0:** Ép tất cả trình duyệt di động & máy tính nạp phiên bản JS mới nhất.
+
+### 🐛 Lỗi 6: Khách quét mã QR Mang Đi nhưng hệ thống tự động gán vào số bàn cũ (Bàn 5, Bàn 1...)
+- **Nguyên nhân:**
+  1. Mã QR Mang Đi trước đây chỉ chứa link trang chủ `baseUrl` không có tham số `?ban=mangdi`.
+  2. Khi khách quét mã QR Mang Đi, URL không có tham số nên hàm `initTableNumberFromURL()` đọc lại `localStorage` cũ (nếu trước đó khách đã từng ngồi Bàn 5 thì hệ thống tự khôi phục Bàn 5).
+- **Khắc phục v6.4.1:**
+  1. Gắn trực tiếp tham số `?ban=mangdi` vào mã QR Mang Đi trong `renderQRTableSection()`.
+  2. Cập nhật hàm `initTableNumberFromURL()` nhận diện chuẩn xác các từ khóa mang đi (`mangdi`, `mang đi`, `takeaway`, `0`), lập tức ghi đè `state.tableNumber = 'Mang đi'` và xóa số bàn cũ trong `localStorage`.
+  3. Mặc định gán `Mang đi` khi người dùng truy cập trang chủ mà không quét mã QR bàn nào.
 
 ---
 

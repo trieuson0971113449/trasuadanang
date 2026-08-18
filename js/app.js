@@ -158,25 +158,38 @@ function initTableNumberFromURL() {
 
     if (tableParam !== null && tableParam !== undefined && tableParam.trim() !== '') {
         let cleanVal = decodeURIComponent(tableParam).trim();
-        if (/^\d+$/.test(cleanVal)) {
-            state.tableNumber = `Bàn ${parseInt(cleanVal, 10)}`;
+        let lowerVal = cleanVal.toLowerCase();
+
+        if (lowerVal === 'mangdi' || lowerVal === 'mang đi' || lowerVal === 'mang_di' || lowerVal === 'takeaway' || lowerVal === '0') {
+            state.tableNumber = 'Mang đi';
+            state.isTakeaway = true;
+            localStorage.setItem('boba_table_number', 'Mang đi');
+        } else if (/^\d+$/.test(cleanVal)) {
+            const tableNum = parseInt(cleanVal, 10);
+            if (tableNum > 0) {
+                state.tableNumber = `Bàn ${tableNum}`;
+                state.isTakeaway = false;
+                localStorage.setItem('boba_table_number', state.tableNumber);
+            } else {
+                state.tableNumber = 'Mang đi';
+                state.isTakeaway = true;
+                localStorage.setItem('boba_table_number', 'Mang đi');
+            }
         } else if (/^bàn\s*\d+$/i.test(cleanVal) || /^ban\s*\d+$/i.test(cleanVal)) {
             const numStr = cleanVal.replace(/\D/g, '');
             state.tableNumber = `Bàn ${numStr}`;
+            state.isTakeaway = false;
+            localStorage.setItem('boba_table_number', state.tableNumber);
         } else {
             state.tableNumber = cleanVal;
+            state.isTakeaway = cleanVal === 'Mang đi';
+            localStorage.setItem('boba_table_number', state.tableNumber);
         }
-        state.isTakeaway = false;
-        localStorage.setItem('boba_table_number', state.tableNumber);
     } else {
-        const savedTable = localStorage.getItem('boba_table_number');
-        if (savedTable) {
-            state.tableNumber = savedTable;
-            state.isTakeaway = savedTable === 'Mang đi';
-        } else {
-            state.tableNumber = 'Mang đi';
-            state.isTakeaway = true;
-        }
+        // When opening root URL without ?ban= parameter, default to "Mang đi"
+        state.tableNumber = 'Mang đi';
+        state.isTakeaway = true;
+        localStorage.setItem('boba_table_number', 'Mang đi');
     }
 
     renderTableBadgeUI();
@@ -3130,7 +3143,7 @@ function renderQRTableSection() {
     }
 
     // Add "Mang đi" QR Card
-    const takeawayUrl = baseUrl;
+    const takeawayUrl = `${baseUrl}?ban=mangdi`;
     const takeawayQrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=6e3b21&data=${encodeURIComponent(takeawayUrl)}`;
     const takeawayCard = document.createElement('div');
     takeawayCard.className = 'qr-table-card';
@@ -3139,12 +3152,12 @@ function renderQRTableSection() {
             <img src="${takeawayQrApiUrl}" alt="QR Mang Đi" style="width:100%; height:100%; object-fit:contain; border-radius:6px;" loading="lazy">
         </div>
         <h4 style="font-weight:800; color:var(--primary); font-size:1rem; margin-bottom:4px;">🛍️ Mang Đi</h4>
-        <a href="${takeawayUrl}" target="_blank" style="font-size:0.75rem; color:var(--text-muted); word-break:break-all; text-decoration:underline;">Trang Chủ</a>
+        <a href="${takeawayUrl}" target="_blank" style="font-size:0.75rem; color:var(--text-muted); word-break:break-all; text-decoration:underline;">?ban=mangdi</a>
         <div style="margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-            <button class="btn-dl-qr" onclick="window.open('${takeawayUrl}', '_blank')">
+            <button class="btn-dl-qr" onclick="window.open('${takeawayUrl}', '_blank')" title="Mở đường link Mang Đi">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Link
             </button>
-            <a href="${takeawayQrApiUrl}" download="QR_MangDi.png" target="_blank" class="btn-dl-qr" style="text-decoration:none; background:var(--primary); color:#fff;">
+            <a href="${takeawayQrApiUrl}" download="QR_MangDi.png" target="_blank" class="btn-dl-qr" style="text-decoration:none; background:var(--primary); color:#fff;" title="Tải ảnh QR Mang Đi về máy để in">
                 <i class="fa-solid fa-download"></i> Tải QR
             </a>
         </div>
