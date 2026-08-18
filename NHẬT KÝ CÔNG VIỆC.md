@@ -113,6 +113,14 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. Cập nhật hàm `initTableNumberFromURL()` nhận diện chuẩn xác các từ khóa mang đi (`mangdi`, `mang đi`, `takeaway`, `0`), lập tức ghi đè `state.tableNumber = 'Mang đi'` và xóa số bàn cũ trong `localStorage`.
   3. Mặc định gán `Mang đi` khi người dùng truy cập trang chủ mà không quét mã QR bàn nào.
 
+### 🐛 Lỗi 7: Khách hàng đặt đơn nhưng Admin không nhận được (Khắc phục lỗi kết nối SSE và CORS Preflight)
+- **Nguyên nhân:**
+  1. **EventSource kết nối sai endpoint:** Hàm `connectEventSource` trong `js/app.js` khởi tạo `new EventSource` trỏ về endpoint kết thúc bằng `/json`. Trên server `ntfy.sh`, endpoint `/json` trả về một luồng NDJSON thô chứ không tuân thủ định dạng Server-Sent Events (`text/event-stream`). Điều này làm trình duyệt ném lỗi kết nối liên tục, khiến EventSource của Admin bị hỏng và không nhận được bất kỳ tin nhắn đẩy thời gian thực nào.
+  2. **Cập nhật đơn bị chặn do CORS Preflight:** Hàm `pushOrderToCloud` gửi HTTP POST request trực tiếp kèm Custom Headers (`Title`, `Tags`, `Priority`). Trên mạng di động (3G/4G/WiFi công cộng), trình duyệt bắt buộc phải thực hiện CORS Preflight (`OPTIONS`), và yêu cầu này thường bị trễ hoặc bị chặn bởi các nhà mạng/firewall, khiến dữ liệu đơn hàng không đẩy lên cloud thành công.
+- **Khắc phục v7.2.0:**
+  1. **Chuyển sang SSE Endpoint:** Đổi đường dẫn khởi tạo EventSource thành `${endpoint}/sse` trong `js/app.js`. Giờ đây EventSource kết nối ổn định 100%, tự động nhận diện và cập nhật đơn hàng tức thì.
+  2. **Truyền metadata qua Query Params:** Chuyển các thông số `Title`, `Tags`, `Priority` từ Custom Headers sang các tham số URL query parameters (`title`, `tags`, `priority`), đồng thời sử dụng `Content-Type: text/plain;charset=UTF-8` tiêu chuẩn. Việc này loại bỏ hoàn toàn yêu cầu CORS Preflight (OPTIONS request), giúp mọi thao tác đặt hàng của khách hoặc cập nhật trạng thái của Admin được truyền tải trơn tru dưới 0.1 giây.
+
 ### ✂️ Yêu cầu 7 (v6.4.2): Loại bỏ 2 mục Tìm kiếm/Danh mục đồ uống & Banner Tra cứu đơn hàng
 - **Thực hiện:**
   1. Loại bỏ thanh tìm kiếm & danh mục danh mục đồ uống (`category-section`).

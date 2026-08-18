@@ -2744,12 +2744,15 @@ async function pushOrderToCloud(order) {
     // Multi-topic parallel publish for maximum reliability
     for (const endpoint of NTFY_TOPIC_ENDPOINTS) {
         try {
-            const res = await fetch(endpoint, {
+            const titleParam = encodeURIComponent(`DON HANG MOI ${order.tableNumber || 'MANG DI'} (#${order.id})`);
+            const tagsParam = encodeURIComponent('coffee,tada');
+            const priorityParam = 'high';
+            const publishUrl = `${endpoint}?title=${titleParam}&tags=${tagsParam}&priority=${priorityParam}`;
+
+            const res = await fetch(publishUrl, {
                 method: 'POST',
                 headers: {
-                    'Title': `DON HANG MOI ${order.tableNumber || 'MANG DI'} (#${order.id})`,
-                    'Tags': 'coffee,tada',
-                    'Priority': 'high'
+                    'Content-Type': 'text/plain;charset=UTF-8'
                 },
                 body: JSON.stringify(payload)
             });
@@ -2841,7 +2844,7 @@ let activeEventSources = [];
 
 function connectEventSource(endpoint) {
     try {
-        const es = new EventSource(`${endpoint}/json`);
+        const es = new EventSource(`${endpoint}/sse`);
         es.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
