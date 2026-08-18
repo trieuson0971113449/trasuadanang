@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.8.0`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.9.0`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -141,6 +141,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
 - **Thực hiện:**
   1. Loại bỏ đường dẫn `Theo Dõi Đơn` khỏi danh sách điều hướng chính (`cust-nav-links`).
   2. Nút **`🧾 Đơn Hàng`** ở góc trên bên phải đóng vai trò duy nhất mở trực tiếp màn hình **Theo dõi dòng thời gian tiến trình đơn hàng cụ thể** của khách hàng theo thời gian thực.
+
+### ⚡ Yêu cầu 12 (v6.9.0): Khắc phục triệt để độ trễ nút "Đơn Hàng" & Mở ngay Cửa Sổ Tra Cứu/Theo Dõi Đơn Siêu Tốc (0ms)
+- **Thực hiện:**
+  1. Loại bỏ việc chờ đợi mạng (`await syncCloudOrders()`) trước khi nạp cửa sổ popup.
+  2. Bấm nút **`🧾 Đơn Hàng`** mở cửa sổ popup tra cứu/theo dõi ngay lập tức **(0ms delay)**.
+  3. Tự động khôi phục số điện thoại gần nhất (`boba_cust_phone`) và hiển thị các đơn hàng tương ứng kèm trạng thái dòng thời gian pha chế/giao hàng.
 
 ---
 

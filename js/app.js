@@ -1519,11 +1519,9 @@ function processCheckout(e) {
     state.orders.unshift(newOrder);
     state.cart = [];
     state.appliedVoucher = null;
-    state.orders.unshift(newOrder);
-    state.cart = [];
-    state.appliedVoucher = null;
     saveStateToStorage();
     localStorage.setItem('boba_my_last_order_id', newOrder.id);
+    if (phone) localStorage.setItem('boba_cust_phone', phone);
     updateCartBadge();
     renderProducts();
     closeModal();
@@ -1769,10 +1767,17 @@ function generateOrderTrackerInnerContent(order) {
 }
 
 // Order Lookup & Tracking Logic for Customers
-async function openOrderLookupModal() {
-    await syncCloudOrders();
+function openOrderLookupModal() {
+    // 1. Non-blocking cloud sync in background
+    syncCloudOrders().then(() => {
+        const lastOrderId = state.activeTrackerOrderId || localStorage.getItem('boba_my_last_order_id');
+        if (lastOrderId && state.activeTrackerOrderId === lastOrderId) {
+            const order = state.orders.find(o => o.id === lastOrderId);
+            if (order) updateTrackerDOM(order);
+        }
+    }).catch(() => {});
 
-    // Check if customer has an active or recent order on this device
+    // 2. Instant open: Check for customer's last order on this device
     const lastOrderId = state.activeTrackerOrderId || localStorage.getItem('boba_my_last_order_id');
     if (lastOrderId) {
         const order = state.orders.find(o => o.id === lastOrderId);
@@ -1782,29 +1787,32 @@ async function openOrderLookupModal() {
         }
     }
 
+    // 3. Open order search & lookup modal immediately (0ms delay)
     openOrderSearchModal();
 }
 
 function openOrderSearchModal() {
     const modalBody = document.getElementById('modal-content-container');
+    const savedPhone = localStorage.getItem('boba_cust_phone') || '';
 
     modalBody.innerHTML = `
         <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <div class="modal-body">
-            <h2 class="modal-item-title" style="margin-bottom: 8px;"><i class="fa-solid fa-truck-fast" style="color: var(--primary);"></i> Tra Cứu & Theo Dõi Đơn Hàng</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
-                Nhập số điện thoại hoặc mã đơn hàng để kiểm tra danh sách đơn hàng đã đặt của bạn.
+            <h2 class="modal-item-title" style="margin-bottom: 8px;"><i class="fa-solid fa-receipt" style="color: var(--primary);"></i> Tra Cứu & Theo Dõi Đơn Hàng</h2>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px;">
+                Nhập <strong>Số điện thoại</strong> hoặc <strong>Mã đơn hàng (VD: ORD-9821)</strong> để xem tiến trình pha chế & giao hàng thực tế!
             </p>
 
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="text" id="modal-order-query" class="form-group" placeholder="Nhập Số ĐT hoặc Mã đơn (VD: ORD-9821)" 
-                       style="flex: 1; margin: 0; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);"
+                <input type="text" id="modal-order-query" class="form-group" placeholder="Nhập Số ĐT hoặc Mã đơn..." 
+                       value="${savedPhone}"
+                       style="flex: 1; margin: 0; padding: 11px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);"
                        onkeyup="if(event.key==='Enter') searchOrdersInModal()">
-                <button class="btn-primary" onclick="searchOrdersInModal()"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm</button>
+                <button class="btn-primary" type="button" onclick="searchOrdersInModal()"><i class="fa-solid fa-magnifying-glass"></i> Tra Cứu</button>
             </div>
 
-            <div id="modal-order-results-list" style="max-height: 420px; overflow-y: auto;">
-                ${renderOrdersListHTML(state.orders)}
+            <div id="modal-order-results-list" style="max-height: 440px; overflow-y: auto;">
+                ${renderOrdersListHTML(savedPhone ? state.orders.filter(o => o.phone.includes(savedPhone) || o.id.toLowerCase().includes(savedPhone.toLowerCase())) : state.orders)}
             </div>
         </div>
     `;
@@ -1813,10 +1821,13 @@ function openOrderSearchModal() {
 }
 
 async function searchOrdersInModal() {
+    const container = document.getElementById('modal-order-results-list');
+    if (container) {
+        container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tra cứu dữ liệu...</div>`;
+    }
     await syncCloudOrders();
     const queryInput = document.getElementById('modal-order-query');
     const query = queryInput ? queryInput.value.trim().toLowerCase() : '';
-    const container = document.getElementById('modal-order-results-list');
     if (!container) return;
 
     if (!query) {
