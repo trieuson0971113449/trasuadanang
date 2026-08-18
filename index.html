@@ -2501,25 +2501,8 @@ a[href*="messenger"] {
             </div>
         </section>
 
-        <!-- Category & Search Bar -->
-        <section class="category-section" id="menu">
-            <div class="container">
-                <div class="search-filter-bar">
-                    <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="search-input" placeholder="Tìm kiếm món trà sữa, trà trái cây, topping..." autocomplete="off">
-                        <button type="button" id="clear-search-btn" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; display: none;"><i class="fa-solid fa-xmark"></i></button>
-                        <div id="search-suggestions-dropdown" class="search-suggestions-panel"></div>
-                    </div>
-                    <div class="categories-pills" id="category-pills-container">
-                        <!-- Category pills rendered dynamically via JS -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- Product Grid Section -->
-        <section class="products-section">
+        <section class="products-section" id="menu">
             <div class="container">
                 <div class="section-header">
                     <h2 class="section-title">Thực Đơn Đồ Uống Khuyên Dùng</h2>
@@ -2527,27 +2510,6 @@ a[href*="messenger"] {
                 </div>
                 <div class="products-grid" id="products-grid-container">
                     <!-- Product cards rendered dynamically via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Order Lookup & Tracking Banner Section -->
-        <section class="order-tracking-section" id="track-order" style="padding: 40px 0; background: linear-gradient(135deg, #fff8e7 0%, #fbf0e8 100%); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-            <div class="container" style="max-width: 900px; text-align: center;">
-                <span class="badge badge-gold" style="margin-bottom: 10px;"><i class="fa-solid fa-truck-fast"></i> Tra Cứu Trực Tuyến</span>
-                <h2 style="font-size: 2rem; color: var(--primary); margin-bottom: 10px;">Theo Dõi Trạng Thái Đơn Hàng</h2>
-                <p style="color: var(--text-muted); margin-bottom: 24px;">Nhập <strong>Số Điện Thoại</strong> hoặc <strong>Mã Đơn Hàng (VD: ORD-9821)</strong> để xem tiến trình pha chế & giao hàng thời gian thực!</p>
-
-                <div style="display: flex; gap: 12px; max-width: 580px; margin: 0 auto 20px;">
-                    <div class="search-box" style="flex: 1;">
-                        <i class="fa-solid fa-receipt"></i>
-                        <input type="text" id="order-lookup-input" placeholder="Nhập Số Điện Thoại hoặc Mã Đơn Hàng...">
-                    </div>
-                    <button class="btn-primary" onclick="performOrderLookup()"><i class="fa-solid fa-magnifying-glass"></i> Tra Cứu</button>
-                </div>
-
-                <div id="order-lookup-result-box" style="margin-top: 20px; text-align: left;">
-                    <!-- Lookup results rendered dynamically via JS -->
                 </div>
             </div>
         </section>
@@ -2880,7 +2842,7 @@ a[href*="messenger"] {
     <div id="print-bill-area" style="display:none;"></div>
 
     <!-- Application JavaScript Scripts -->
-    <script src="js/data.js?v=6.4.1_202608180731"></script>
-    <script src="js/app.js?v=6.4.1_202608180731"></script>
+    <script src="js/data.js?v=6.4.2_202608180740"></script>
+    <script src="js/app.js?v=6.4.2_202608180740"></script>
 </body>
 </html>

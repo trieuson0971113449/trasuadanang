@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.4.1`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.4.2`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -112,6 +112,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Gắn trực tiếp tham số `?ban=mangdi` vào mã QR Mang Đi trong `renderQRTableSection()`.
   2. Cập nhật hàm `initTableNumberFromURL()` nhận diện chuẩn xác các từ khóa mang đi (`mangdi`, `mang đi`, `takeaway`, `0`), lập tức ghi đè `state.tableNumber = 'Mang đi'` và xóa số bàn cũ trong `localStorage`.
   3. Mặc định gán `Mang đi` khi người dùng truy cập trang chủ mà không quét mã QR bàn nào.
+
+### ✂️ Yêu cầu 7 (v6.4.2): Loại bỏ 2 mục Tìm kiếm/Danh mục đồ uống & Banner Tra cứu đơn hàng
+- **Thực hiện:**
+  1. Loại bỏ thanh tìm kiếm & danh mục danh mục đồ uống (`category-section`).
+  2. Loại bỏ khối banner "Theo Dõi Trạng Thái Đơn Hàng" (`order-tracking-section`).
+  3. Chuyển neo điều hướng `id="menu"` về khối Thực Đơn Sản Phẩm chính (`products-section`) giúp giao diện tinh gọn, trực quan và tải nhanh hơn.
 
 ---
 
