@@ -113,6 +113,8 @@ function loadStateFromStorage() {
     try { storedCart = JSON.parse(localStorage.getItem('boba_cart')); } catch(e){}
     state.cart = Array.isArray(storedCart) ? storedCart : [];
 
+    let storedOrders = null;
+    try { storedOrders = JSON.parse(localStorage.getItem('boba_orders')); } catch(e){}
     state.orders = (storedOrders !== null && Array.isArray(storedOrders)) ? storedOrders : DEFAULT_ORDERS;
     state.orders.forEach(o => {
         if (!o.updatedAt) {

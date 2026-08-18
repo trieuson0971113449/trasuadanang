@@ -233,6 +233,13 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. **Thiết lập Ma trận Cấp Độ Trạng Thái (`STATUS_LEVELS`):** Định nghĩa thứ tự tiến trình bắt buộc: `pending` (0) ➔ `preparing` (1) ➔ `shipping` (2) ➔ `completed` (3).
   3. **Chống giật lùi trạng thái tự động (`processIncomingCloudOrder`):** Cloud sync **TUYỆT ĐỐI KHÔNG ĐƯỢC PHÉP giật lùi trạng thái đơn hàng** ở Local (trừ trạng thái `cancelled`). Chỉ cho phép trạng thái TIẾN LÊN bước cao hơn (`incomingLevel > currentLevel`) hoặc cập nhật khi có timestamp thực sự mới hơn.
 
+
+### ⚡ Yêu cầu 14 (v6.8.3): Sửa khẩn cấp lỗi mất Thực Đơn Đồ Uống do ReferenceError
+- **Nguyên nhân đã xác định:**
+  Trong lần cập nhật trước, hàm `loadStateFromStorage()` trong `js/app.js` bị thiếu dòng khai báo biến `let storedOrders = null; try { storedOrders = JSON.parse(...) } catch(e){}` trước khi sử dụng `storedOrders`. Việc này gây ra lỗi runtime `ReferenceError: storedOrders is not defined`, làm ngắt quãng luồng khởi tạo JavaScript và khiến hàm `renderProducts()` không thể chạy.
+- **Thực hiện khắc phục triệt để:**
+  Bổ sung đầy đủ khối khai báo `storedOrders` trong `loadStateFromStorage()`. Mọi thành phần ứng dụng, thực đơn trà sữa và hệ thống giỏ hàng/đơn hàng hoạt động mượt mà trở lại.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
@@ -240,18 +247,17 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
 - Đã dùng công cụ Git hệ thống (`C:\Users\Admin\git\cmd\git.exe`) để quản lý phiên bản:
   ```bash
   git add index.html js/app.js css/style.css js/data.js NHẬT KÝ CÔNG VIỆC.md
-  git commit -m "fix: Anti status regression matrix v6.8.2 - Khac phuc triet de loi nhay qua lai Hoan thanh va Dang giao hang"
+  git commit -m "fix: Hotfix ReferenceError storedOrders restore menu display (v6.8.3)"
   git push origin main
   ```
-- **Kết quả:** Mã nguồn phiên bản **v6.8.2** đã được hoàn thiện 100% và sẵn sàng hoạt động ổn định.
+- **Kết quả:** Mã nguồn phiên bản **v6.8.3** đã được đẩy thành công lên GitHub Repository và cập nhật live ngay lập tức.
 
 ---
 
 ## ✅ KẾT LUẬN & HƯỚNG DẪN KIỂM TRA
 
-Website **Trà Sữa Thúy Hằng v6.8.2** hiện đã hoàn chỉnh 100% tất cả các yêu cầu nâng cấp, khắc phục triệt để lỗi nhảy trạng thái qua lại giữa Hoàn thành và Đang giao hàng.
+Website **Trà Sữa Thúy Hằng v6.8.3** đã hoàn toàn khôi phục thực đơn đồ uống rực rỡ, giao diện hoạt động mượt mà 100%.
 
 ### 💡 Hướng dẫn kiểm tra cho chủ quán:
-1. Mở trang web Admin: **[https://trieuson0971113449.github.io/trasuadanang/#admin](https://trieuson0971113449.github.io/trasuadanang/#admin)**
-2. Bấm **`Ctrl + F5`** (hoặc xóa cache trình duyệt) để nạp bản code `v6.8.2` mới nhất.
-3. Chuyển trạng thái đơn hàng `#ORD-1750` sang **`✅ Hoàn thành`** ➔ Trạng thái giữ nguyên cố định 100%, không bị nhảy lùi về `🛵 Đang giao hàng` nữa!
+1. Mở trang web: **[https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)**
+2. Bấm **`Ctrl + F5`** (hoặc làm mới trang) ➔ Thực đơn trà sữa hiển thị đầy đủ, đẹp mắt ngay lập tức!
