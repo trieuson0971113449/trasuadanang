@@ -155,6 +155,13 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   3. Loại bỏ dòng ghi chú đồng bộ ở chân cửa sổ popup.
   4. Giao diện Theo Dõi Đơn Hàng hiện tại cực kỳ tinh gọn, tập trung 100% vào **Thanh tiến trình pha chế (Dòng thời gian real-time)**, **Bộ đếm giờ trực quan** và **Chi tiết các món trong hóa đơn**.
 
+### ⚡ Yêu cầu 14 (v7.1.0): Tách biệt nút Tăng/Giảm Số Lượng và nút Thoát (X) trong Modal Chọn Món
+- **Thực hiện:**
+  1. Thay vì để nút Tăng/Giảm Số Lượng `[- 1 +]` nằm cùng hàng với Tên món/Giá gốc ở góc phải (gây dính sát và chồng chéo lên nút tắt modal `X` ở góc trên bên phải), đã chuyển phần chỉnh Số lượng xuống một dòng riêng biệt.
+  2. Bổ sung nhãn `Số lượng:` rõ ràng bên trái và căn chỉnh cụm nút tăng giảm sang góc phải của dòng thứ hai.
+  3. Áp dụng giới hạn khoảng cách (padding-right: 40px) cho tên món/giá gốc để không bao giờ có thể đè đè hay dính vào nút thoát `X` (được định vị tuyệt đối `position: absolute`).
+  4. Trải nghiệm thao tác của khách hàng trên các thiết bị di động trở nên mượt mà, không lo bấm nhầm giữa nút tăng số lượng và nút tắt modal.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)

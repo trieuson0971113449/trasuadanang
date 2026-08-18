@@ -933,15 +933,20 @@ function renderCustomModalContent() {
         <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <div class="modal-body" style="padding: 20px 24px;">
             <!-- Compact Top Header: Product Name + Base Price & Intuitive Top Quantity Controls -->
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
-                <div style="flex: 1;">
-                    <h2 class="modal-item-title" style="margin: 0 0 4px 0; font-size: 1.25rem; color: var(--primary);">${product.name}</h2>
-                    <div style="font-weight: 800; font-size: 1.1rem; color: var(--accent-red);">${formatCurrency(product.price)}</div>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+                <!-- Product Title and Price (With space reserved for the absolute close button on the right) -->
+                <div style="padding-right: 40px;">
+                    <h2 class="modal-item-title" style="margin: 0 0 4px 0; font-size: 1.25rem; color: var(--primary); font-weight: 700; line-height: 1.3;">${product.name}</h2>
+                    <div style="font-weight: 800; font-size: 1.15rem; color: var(--accent-red); margin-top: 4px;">${formatCurrency(product.price)}</div>
                 </div>
-                <div class="qty-control" style="margin: 0; background: var(--light-bg); padding: 4px 8px; border-radius: 20px; border: 1px solid var(--border-color);">
-                    <button class="qty-btn" type="button" onclick="updateCustomQty(-1)" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
-                    <span class="qty-val custom-qty-val" id="custom-qty-val">${state.customQty}</span>
-                    <button class="qty-btn" type="button" onclick="updateCustomQty(1)" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                <!-- Quantity Control Row -->
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-main);">Số lượng:</span>
+                    <div class="qty-control">
+                        <button class="qty-btn" type="button" onclick="updateCustomQty(-1)" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                        <span class="qty-val custom-qty-val" id="custom-qty-val">${state.customQty}</span>
+                        <button class="qty-btn" type="button" onclick="updateCustomQty(1)" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                    </div>
                 </div>
             </div>
 
