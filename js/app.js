@@ -2083,9 +2083,14 @@ function advanceOrderStatusAdmin(orderId) {
 
     const sequence = ['pending', 'preparing', 'shipping', 'completed'];
     const currIdx = sequence.indexOf(order.status);
-    const nextIdx = (currIdx + 1) % sequence.length;
-    const nextStatus = sequence[nextIdx];
 
+    // Nếu đơn đang ở trạng thái cuối (completed) hoặc không hợp lệ (cancelled / unknown), không làm gì
+    if (currIdx === -1 || currIdx >= sequence.length - 1) {
+        showToast(`⚠️ Đơn #${orderId} đã ở trạng thái cuối hoặc không thể chuyển tiếp.`, 'error');
+        return;
+    }
+
+    const nextStatus = sequence[currIdx + 1];
     updateOrderStatus(orderId, nextStatus);
 }
 
