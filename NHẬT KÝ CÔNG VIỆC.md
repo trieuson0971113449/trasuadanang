@@ -193,6 +193,11 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. Thiết lập chiều cao động (`height: auto` và `max-height: 85vh`), giúp giỏ hàng tự co giãn khít theo số lượng món trong giỏ (bỏ hoàn toàn khoảng trắng dư thừa ở giữa khi giỏ chỉ có ít món).
   3. Khi có nhiều món, phần danh sách món (`cart-drawer-body`) sẽ tự động có thanh cuộn mượt mà mà không đè lên phần tiêu đề và nút Thanh toán.
 
+### ⚡ Yêu cầu 16 (v7.6.0): Ẩn hoàn toàn khung thông báo xanh khi chọn hình thức "Thanh toán sau tại quầy"
+- **Thực hiện:**
+  1. Trong hàm `selectPaymentOption` ở `js/app.js`, khi khách chọn hình thức "Thanh toán sau (Tiền mặt / Tại quầy)", chúng tôi ẩn hoàn toàn khung hiển thị thông tin (`qrBox.style.display = 'none'` và xóa nội dung HTML bên trong).
+  2. Việc này giúp loại bỏ khung hộp màu xanh lá cây cồng kềnh, làm cho giao diện Modal Thanh Toán cực kỳ gọn gàng, thoáng mắt và trực quan hơn.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)

@@ -1439,17 +1439,8 @@ function selectPaymentOption(type, grandTotal, checkoutOrderCode) {
             labelOnline.style.background = 'var(--card-bg)';
         }
         if (qrBox) {
-            qrBox.style.display = 'block';
-            qrBox.innerHTML = `
-                <div style="background: #e8f8f5; border: 1.5px solid #27ae60; padding: 16px; border-radius: var(--radius-md); text-align: center;">
-                    <strong style="color: #27ae60; display: block; font-size: 1rem; margin-bottom: 4px;">
-                        <i class="fa-solid fa-circle-check"></i> Đã chọn Hình thức Thanh toán sau tại quầy!
-                    </strong>
-                    <p style="font-size: 0.85rem; color: var(--text-muted);">
-                        Quý khách vui lòng nhấn nút <strong>"Gửi Đơn Ngay"</strong> bên dưới. Đơn sẽ gửi trực tiếp đến bộ phận Bếp pha chế. Quý khách thanh toán tiền mặt sau tại quầy hoặc tại bàn.
-                    </p>
-                </div>
-            `;
+            qrBox.style.display = 'none';
+            qrBox.innerHTML = '';
         }
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi Đơn Hàng Ngay (Thanh Toán Sau)';
