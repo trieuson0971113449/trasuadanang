@@ -1118,20 +1118,31 @@ input, select, textarea {
     transition: var(--transition);
 }
 
-.step-item.active .step-icon {
+.step-item.completed .step-icon {
+    background: #e8f8f5;
+    color: #27ae60;
+    border-color: #27ae60;
+}
+
+.step-item.completed .step-label {
+    color: #27ae60;
+}
+
+.step-item.current .step-icon {
     background: var(--primary);
     color: #fff;
     box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+.step-item.current .step-label {
+    color: var(--primary);
+    font-weight: 800;
 }
 
 .step-label {
     font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-muted);
-}
-
-.step-item.active .step-label {
-    color: var(--primary);
 }
 
 /* Customer Reviews Carousel / Grid */
@@ -1724,12 +1735,12 @@ body.dark-theme .realtime-timer-banner {
     font-size: 0.95rem;
 }
 
-.step-item.active .step-icon {
-    animation: stepPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+.step-item.current .step-icon {
+    animation: stepPopOnce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes stepPop {
-    0% { transform: scale(0.6); }
+@keyframes stepPopOnce {
+    0% { transform: scale(0.7); }
     70% { transform: scale(1.15); }
     100% { transform: scale(1); }
 }

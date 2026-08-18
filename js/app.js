@@ -1698,7 +1698,7 @@ function generateOrderTrackerInnerContent(order) {
 
         <div class="tracker-steps">
             ${steps.map((step, idx) => `
-                <div class="step-item ${idx <= currentStepIndex ? 'active' : ''}">
+                <div class="step-item ${idx < currentStepIndex ? 'completed' : idx === currentStepIndex ? 'current' : ''}" >
                     <div class="step-icon"><i class="fa-solid ${step.icon}"></i></div>
                     <span class="step-label">${step.label}</span>
                 </div>
@@ -2099,7 +2099,10 @@ function updateOrderStatus(orderId, newStatus) {
     if (!order) return;
 
     const prevStatus = order.status;
+    if (prevStatus === newStatus) return;
+
     order.status = newStatus;
+    order.updatedAt = Date.now();
 
     // Deduct product stock ONLY when order is completed
     if (newStatus === 'completed' && !order.isStockDeducted) {
@@ -2675,11 +2678,12 @@ function savePendingPushes() {
 }
 
 // Process and store any order arriving from Cloud Stream or Polling
-function processIncomingCloudOrder(cloudOrder) {
+function processIncomingCloudOrder(cloudOrder, msgTime = 0) {
     if (!cloudOrder || (!cloudOrder.id && !cloudOrder.orderId)) return;
     const orderId = cloudOrder.orderId || cloudOrder.id;
 
     const localOrderIndex = state.orders.findIndex(o => o.id === orderId);
+    const incomingTime = cloudOrder.updatedAt || msgTime || Date.now();
 
     if (localOrderIndex === -1) {
         const formattedOrder = {
@@ -2698,6 +2702,7 @@ function processIncomingCloudOrder(cloudOrder) {
             paymentStatus: cloudOrder.paymentStatus || 'chua_thanh_toan',
             status: cloudOrder.status || 'pending',
             createdAt: cloudOrder.createdAt || getFormattedLocalDateTime(),
+            updatedAt: incomingTime,
             note: cloudOrder.note || ''
         };
 
@@ -2714,11 +2719,25 @@ function processIncomingCloudOrder(cloudOrder) {
             console.log(`📩 Nhận đơn chuyển khoản #${formattedOrder.id} - Đang chờ Admin xác nhận tiền.`);
         }
     } else {
-        if (cloudOrder.status && state.orders[localOrderIndex].status !== cloudOrder.status) {
-            state.orders[localOrderIndex].status = cloudOrder.status;
-            if (cloudOrder.paymentStatus) state.orders[localOrderIndex].paymentStatus = cloudOrder.paymentStatus;
-            saveStateToStorage();
-            refreshRealTimeUI();
+        const localOrder = state.orders[localOrderIndex];
+        const localTime = localOrder.updatedAt || 0;
+
+        // Chỉ cập nhật khi tin nhắn cloud mới hơn hoặc có thời gian tương đương
+        if (incomingTime >= localTime) {
+            let stateChanged = false;
+            if (cloudOrder.status && localOrder.status !== cloudOrder.status) {
+                localOrder.status = cloudOrder.status;
+                stateChanged = true;
+            }
+            if (cloudOrder.paymentStatus && localOrder.paymentStatus !== cloudOrder.paymentStatus) {
+                localOrder.paymentStatus = cloudOrder.paymentStatus;
+                stateChanged = true;
+            }
+            if (stateChanged) {
+                localOrder.updatedAt = incomingTime;
+                saveStateToStorage();
+                refreshRealTimeUI();
+            }
         }
     }
 }
@@ -2726,6 +2745,10 @@ function processIncomingCloudOrder(cloudOrder) {
 // Push order to central Cloud Relay instantly when customer submits order on phone
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
+
+    if (!order.updatedAt) {
+        order.updatedAt = Date.now();
+    }
 
     const payload = {
         orderId: order.id,
@@ -2744,6 +2767,7 @@ async function pushOrderToCloud(order) {
         paymentStatus: order.paymentStatus || 'chua_thanh_toan',
         status: order.status || 'pending',
         createdAt: order.createdAt || getFormattedLocalDateTime(),
+        updatedAt: order.updatedAt,
         note: order.note || ''
     };
 
@@ -2810,6 +2834,8 @@ async function pushAllOrdersToCloud() {
 
 // Poll Cloud Engine to Fetch Orders Placed by Customers in the last 24h
 async function syncCloudOrders() {
+    const latestOrdersMap = new Map(); // orderId -> { order: cloudOrder, timestamp: number }
+
     for (const endpoint of NTFY_TOPIC_ENDPOINTS) {
         try {
             const res = await fetch(`${endpoint}/json?poll=1&since=24h`);
@@ -2827,8 +2853,13 @@ async function syncCloudOrders() {
                         if (typeof cloudOrder === 'string') {
                             try { cloudOrder = JSON.parse(cloudOrder); } catch(e){}
                         }
-                        if (typeof cloudOrder === 'object' && cloudOrder) {
-                            processIncomingCloudOrder(cloudOrder);
+                        if (typeof cloudOrder === 'object' && cloudOrder && (cloudOrder.id || cloudOrder.orderId)) {
+                            const id = cloudOrder.id || cloudOrder.orderId;
+                            const msgTime = cloudOrder.updatedAt || (parsedLine.time ? parsedLine.time * 1000 : 0);
+
+                            if (!latestOrdersMap.has(id) || msgTime > latestOrdersMap.get(id).timestamp) {
+                                latestOrdersMap.set(id, { order: cloudOrder, timestamp: msgTime });
+                            }
                         }
                     }
                 } catch(e) {}
@@ -2837,6 +2868,11 @@ async function syncCloudOrders() {
             console.warn('Cloud order sync error:', err);
         }
     }
+
+    // Process only the latest state for each order
+    latestOrdersMap.forEach(({ order, timestamp }) => {
+        processIncomingCloudOrder(order, timestamp);
+    });
 }
 
 // Manual Sync Button for Admin
@@ -2862,7 +2898,8 @@ function connectEventSource(endpoint) {
                         try { cloudOrder = JSON.parse(cloudOrder); } catch(e){}
                     }
                     if (typeof cloudOrder === 'object' && cloudOrder) {
-                        processIncomingCloudOrder(cloudOrder);
+                        const msgTime = cloudOrder.updatedAt || (data.time ? data.time * 1000 : Date.now());
+                        processIncomingCloudOrder(cloudOrder, msgTime);
                     }
                 }
             } catch(e) {}

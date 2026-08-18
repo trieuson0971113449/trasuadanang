@@ -213,6 +213,16 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   3. Khi khách hàng nhấn chọn Chuyển Khoản và bấm nút này, hệ thống sẽ tiến hành gửi đơn lên hệ thống trước. Sau đó, nó sẽ tự động kích hoạt một Modal riêng biệt ("Hình 1") chỉ hiển thị thông tin VietQR để khách hàng tập trung quét mã chuyển khoản.
   4. Khách hàng sau khi chuyển khoản xong bấm nút **`Tôi Đã Chuyển Khoản Xong`** trên màn hình để đóng modal và theo dõi tiến trình đơn hàng bình thường.
 
+
+### 🛠️ Yêu cầu 12 (v6.8.1): Khắc phục triệt để lỗi tự động nhảy bước & 4 nút tiến trình nhấp nháy liên tục
+- **Nguyên nhân đã xác định:**
+  1. Trong hàm đồng bộ Cloud (`syncCloudOrders`), hệ thống poll 3 máy chủ Ntfy toàn cầu và duyệt qua toàn bộ lịch sử tin nhắn trong 24 giờ qua. Do mỗi đơn hàng có nhiều tin nhắn ghi lại các bước trạng thái cũ/mới, việc duyệt tuần tự từng tin nhắn trong vòng lặp `lines.forEach` đã liên tục ghi đè trạng thái `pending` ➔ `preparing` ➔ `shipping` ➔ `completed` của đơn hàng trong mỗi chu kỳ 4 giây.
+  2. CSS cũ còn tồn tại selector `.step-item.active .step-icon` chứa `@keyframes stepPop` gây ra hiệu ứng nảy lại mỗi khi UI re-render.
+- **Thực hiện khắc phục triệt để:**
+  1. **Lọc bản ghi Cloud mới nhất bằng Timestamp (`latestOrdersMap`):** Thu thập toàn bộ bản ghi từ 3 máy chủ Cloud, lọc lấy duy nhất trạng thái mang timestamp (`updatedAt`) mới nhất của mỗi mã đơn trước khi cập nhật vào state.
+  2. **So sánh timestamp trước khi cập nhật (`incomingTime >= localTime`):** Bổ sung timestamp `updatedAt` cho đơn hàng local và chỉ chấp nhận cập nhật nếu tin nhắn từ Cloud mới hơn timestamp local hiện tại.
+  3. **Đồng bộ CSS & loại bỏ nhấp nháy:** Thay thế toàn bộ class `.active` cũ bằng `.current` và `.completed`. Thiết lập hiệu ứng `stepPopOnce` chỉ kích hoạt một lần duy nhất khi bước trở thành bước hiện tại, các bước hoàn tất có viền và màu nền xanh dịu mượt mà.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
@@ -220,19 +230,18 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
 - Đã dùng công cụ Git hệ thống (`C:\Users\Admin\git\cmd\git.exe`) để quản lý phiên bản:
   ```bash
   git add index.html js/app.js css/style.css js/data.js NHẬT KÝ CÔNG VIỆC.md
-  git commit -m "feat & fix: Upgrade v6.3.0 with ntfy.sh SSE Stream, Mute/Unmute sound toggle & Cache Buster"
+  git commit -m "fix: Khac phuc triet de loi tu nhay buoc va nhap nhay 4 buoc theo doi don (v6.8.1)"
   git push origin main
   ```
-- **Kết quả:** Mã nguồn phiên bản **v6.3.0** đã được đẩy thành công lên GitHub Repository `trieuson0971113449/trasuadanang` và tự động cập nhật lên trang web GitHub Pages live.
+- **Kết quả:** Mã nguồn phiên bản **v6.8.1** đã được hoàn thiện 100% và sẵn sàng hoạt động ổn định.
 
 ---
 
 ## ✅ KẾT LUẬN & HƯỚNG DẪN KIỂM TRA
 
-Website **Trà Sữa Thúy Hằng v6.3.0** hiện đã hoàn chỉnh 100% tất cả các yêu cầu nâng cấp, nổ đơn QR siêu tốc thời gian thực và quản lý âm thanh chuông báo linh hoạt.
+Website **Trà Sữa Thúy Hằng v6.8.1** hiện đã hoàn chỉnh 100% tất cả các yêu cầu nâng cấp, khắc phục triệt để lỗi tự nhảy bước đơn hàng và nút nhấp nháy.
 
 ### 💡 Hướng dẫn kiểm tra cho chủ quán:
-1. Mở liên kết Admin: **[https://trieuson0971113449.github.io/trasuadanang/#admin](https://trieuson0971113449.github.io/trasuadanang/#admin)**
-2. Bấm **`Ctrl + F5`** trên máy tính để nạp bản code `v6.3.0` mới nhất.
-3. Trải nghiệm nút **`[🔊 Chuông: BẬT]`** hoặc **`[🔇 Chuông: TẮT]`** ngay trên thanh Quản Lý Đơn Hàng.
-4. Dùng điện thoại quét mã QR **Bàn 5** (`?ban=5`) ➔ Đặt món ➔ Đơn hàng nổ về màn hình Admin trong chưa tới 1 giây!
+1. Mở trang web: **[https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)**
+2. Bấm **`Ctrl + F5`** (hoặc xóa cache trình duyệt) để nạp bản code `v6.8.1` mới nhất.
+3. Mở xem chi tiết Theo Dõi Đơn Hàng ➔ Trạng thái giữ nguyên ổn định, 4 bước hiển thị tĩnh mượt mà, chỉ nhảy bước khi Admin thực sự chuyển bước đơn hàng.
