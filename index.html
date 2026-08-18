@@ -2737,15 +2737,26 @@ a[href*="messenger"] {
 
             <!-- QR Code Bàn Section -->
             <section id="admin-sec-qr" class="admin-tab-content" style="display: none;">
-                <div class="admin-header-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="admin-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
                         <span>QR Code Bàn</span>
                         <span style="font-size:0.85rem; color:var(--text-muted); font-weight:400; display:block;">In hoặc chia sẻ mã QR cho từng bàn — khách quét là đặt hàng ngay</span>
                     </div>
-                    <button class="btn-primary" onclick="renderQRTableSection()" style="padding: 8px 14px; font-size: 0.85rem;">
-                        <i class="fa-solid fa-rotate"></i> Tạo Lại QR
-                    </button>
                 </div>
+
+                <!-- Custom Base URL Config for QR Generation -->
+                <div style="background: var(--light-bg); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+                    <label style="font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 8px; color: var(--primary);">Đường dẫn gốc cho mã QR (Base URL):</label>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="qr-base-url-input" style="flex: 1; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); min-width: 250px; background: var(--card-bg); color: var(--text-main); font-family: inherit;" placeholder="https://..." value="">
+                        <button class="btn-secondary" onclick="setQRBaseUrlToLive()" style="padding: 10px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-color);">Đổi Sang Link Live</button>
+                        <button class="btn-primary" onclick="renderQRTableSection()" style="padding: 10px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer;">Tạo Lại Mã QR</button>
+                    </div>
+                    <div id="qr-base-url-warning" style="margin-top: 10px; font-size: 0.82rem; color: #e65100; display: none; font-weight: 600; background: rgba(230, 81, 0, 0.08); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(230, 81, 0, 0.15);">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Cảnh báo: Bạn đang chạy Web cục bộ (Offline). Điện thoại di động sẽ KHÔNG THỂ QUÉT ĐƯỢC mã QR này. Vui lòng nhấn "Đổi Sang Link Live" để tạo mã QR chuẩn chỉnh sử dụng thực tế.
+                    </div>
+                </div>
+
                 <div class="qr-table-grid" id="qr-table-grid-container">
                     <!-- QR cards rendered by JS -->
                 </div>
@@ -2841,7 +2852,7 @@ a[href*="messenger"] {
     <div id="print-bill-area" style="display:none;"></div>
 
     <!-- Application JavaScript Scripts -->
-    <script src="js/data.js?v=7.2.0_202608180921"></script>
-    <script src="js/app.js?v=7.2.0_202608180921"></script>
+    <script src="js/data.js?v=7.3.0_202608180927"></script>
+    <script src="js/app.js?v=7.3.0_202608180927"></script>
 </body>
 </html>

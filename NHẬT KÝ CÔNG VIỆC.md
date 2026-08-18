@@ -121,6 +121,15 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. **Chuyển sang SSE Endpoint:** Đổi đường dẫn khởi tạo EventSource thành `${endpoint}/sse` trong `js/app.js`. Giờ đây EventSource kết nối ổn định 100%, tự động nhận diện và cập nhật đơn hàng tức thì.
   2. **Truyền metadata qua Query Params:** Chuyển các thông số `Title`, `Tags`, `Priority` từ Custom Headers sang các tham số URL query parameters (`title`, `tags`, `priority`), đồng thời sử dụng `Content-Type: text/plain;charset=UTF-8` tiêu chuẩn. Việc này loại bỏ hoàn toàn yêu cầu CORS Preflight (OPTIONS request), giúp mọi thao tác đặt hàng của khách hoặc cập nhật trạng thái của Admin được truyền tải trơn tru dưới 0.1 giây.
 
+### 🐛 Lỗi 8: Khách quét mã QR của bàn offline (file:// hoặc 127.0.0.1) dẫn đến không đặt được đơn hàng và Admin không nhận được
+- **Nguyên nhân:**
+  1. Khi bạn mở trang Admin cục bộ trên máy tính dưới dạng file offline (`file://`) hoặc Live Server cục bộ (`127.0.0.1`) rồi bấm "Tạo Lại QR", đường dẫn được gán vào mã QR sẽ chứa địa chỉ máy tính cá nhân của bạn.
+  2. Điện thoại của khách quét mã QR này sẽ bị lỗi không tải được trang web (vì không thể truy cập file trên máy tính của bạn), dẫn đến không thể gửi đơn hàng.
+- **Khắc phục v7.3.0:**
+  1. Bổ sung bảng cấu hình **Base URL** trực tiếp trong phần quản lý QR Code của Admin.
+  2. Tự động kiểm tra và hiển thị cảnh báo đỏ nổi bật nếu phát hiện chủ quán đang chạy Web ở chế độ cục bộ nhằm hạn chế in nhầm.
+  3. Bổ sung nút **"Đổi sang Link Live"** giúp tự động chuyển toàn bộ mã QR của bàn sang đường dẫn online chính thức `https://trieuson0971113449.github.io/trasuadanang/` chỉ với một cú click, giúp khách hàng quét và nổ đơn online mượt mà.
+
 ### ✂️ Yêu cầu 7 (v6.4.2): Loại bỏ 2 mục Tìm kiếm/Danh mục đồ uống & Banner Tra cứu đơn hàng
 - **Thực hiện:**
   1. Loại bỏ thanh tìm kiếm & danh mục danh mục đồ uống (`category-section`).

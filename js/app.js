@@ -3099,10 +3099,27 @@ function renderQRTableSection() {
     const container = document.getElementById('qr-table-grid-container');
     if (!container) return;
 
+    const inputEl = document.getElementById('qr-base-url-input');
+    const warningEl = document.getElementById('qr-base-url-warning');
+    
+    let baseUrl = window.location.href.split('?')[0].split('#')[0];
+    
+    if (inputEl) {
+        if (!inputEl.value) {
+            inputEl.value = baseUrl;
+        } else {
+            baseUrl = inputEl.value.trim();
+        }
+    }
+
+    if (warningEl) {
+        const isLocal = baseUrl.startsWith('file://') || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+        warningEl.style.display = isLocal ? 'block' : 'none';
+    }
+
     // Clear existing QR codes
     container.innerHTML = '';
 
-    const baseUrl = window.location.href.split('?')[0].split('#')[0];
     const totalTables = 15;
 
     for (let i = 1; i <= totalTables; i++) {
@@ -3152,4 +3169,13 @@ function renderQRTableSection() {
     container.appendChild(takeawayCard);
 
     showToast(`✅ Đã tạo 15 mã QR cho từng bàn!`, 'success');
+}
+
+function setQRBaseUrlToLive() {
+    const inputEl = document.getElementById('qr-base-url-input');
+    if (inputEl) {
+        inputEl.value = 'https://trieuson0971113449.github.io/trasuadanang/';
+        renderQRTableSection();
+        showToast('📍 Đã đổi sang link Website Live để in/quét thực tế!', 'success');
+    }
 }
