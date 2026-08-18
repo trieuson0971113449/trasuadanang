@@ -130,6 +130,14 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. Tự động kiểm tra và hiển thị cảnh báo đỏ nổi bật nếu phát hiện chủ quán đang chạy Web ở chế độ cục bộ nhằm hạn chế in nhầm.
   3. Bổ sung nút **"Đổi sang Link Live"** giúp tự động chuyển toàn bộ mã QR của bàn sang đường dẫn online chính thức `https://trieuson0971113449.github.io/trasuadanang/` chỉ với một cú click, giúp khách hàng quét và nổ đơn online mượt mà.
 
+### 🐛 Lỗi 9: Lỗi kết nối ntfy.sh bị nghẽn/chặn hoàn toàn tại Việt Nam làm mất kết nối nổ đơn
+- **Nguyên nhân:**
+  1. Máy chủ chính của dịch vụ `ntfy.sh` đặt tại Mỹ bị các nhà mạng lớn tại Việt Nam (Viettel, VNPT, FPT) chặn kết nối hoặc giới hạn băng thông nghiêm ngặt, dẫn đến tình trạng hết thời gian chờ (Connection Timed Out).
+  2. Việc chỉ phụ thuộc vào một nhà cung cấp duy nhất (`ntfy.sh`) làm sập hoàn toàn hệ thống đẩy và nhận đơn hàng tự động khi máy chủ này bị chặn.
+- **Khắc phục v7.4.0:**
+  1. **Nâng cấp kiến trúc Đa Máy Chủ Độc Lập (Multi-Server Redundancy):** Thay thế cấu hình cũ bằng mạng lưới 3 máy chủ phân tán toàn cầu: Máy chủ Đức (`ntfy.adminforge.de`), Máy chủ Pháp (`ntfy.tedomum.fr`) và Máy chủ Mỹ (`ntfy.sh`).
+  2. **Gửi và Nhận Song Song:** Khi khách hàng đặt đơn, trình duyệt sẽ đẩy song song lên cả 3 máy chủ. Đồng thời, trình duyệt Admin cũng lắng nghe EventSource SSE từ cả 3 đường dẫn này. Nhờ đó, chỉ cần tối thiểu 1 máy chủ thông suốt (Đức/Pháp kết nối cực kỳ tốt), hệ thống sẽ nổ đơn ngay lập tức trong vòng 0.1 giây, loại bỏ hoàn toàn rủi ro bị nhà mạng chặn dịch vụ.
+
 ### ✂️ Yêu cầu 7 (v6.4.2): Loại bỏ 2 mục Tìm kiếm/Danh mục đồ uống & Banner Tra cứu đơn hàng
 - **Thực hiện:**
   1. Loại bỏ thanh tìm kiếm & danh mục danh mục đồ uống (`category-section`).

@@ -2655,8 +2655,9 @@ function playOrderAlertSound() {
    ========================================================================== */
 
 const NTFY_TOPIC_ENDPOINTS = [
-    'https://ntfy.sh/trasua_thuyhang_orders_v600_app',
-    'https://ntfy.sh/trasua_thuyhang_orders_v600_backup'
+    'https://ntfy.adminforge.de/trasua_thuyhang_orders_v600_app',
+    'https://ntfy.tedomum.fr/trasua_thuyhang_orders_v600_backup',
+    'https://ntfy.sh/trasua_thuyhang_orders_v600_app'
 ];
 
 let pendingOrderPushes = [];
