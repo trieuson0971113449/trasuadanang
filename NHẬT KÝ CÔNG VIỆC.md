@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.6.0`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.7.0`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -130,6 +130,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Loại bỏ mục `2. CHỌN LƯỢNG ĐƯỜNG` (100%, 70%, 50%, 30%, 0%).
   2. Loại bỏ mục `3. CHỌN LƯỢNG ĐÁ` (100%, 70%, 50%, 30%, 0%).
   3. Rút gọn danh sách tùy chọn chỉ còn **1. Chọn Size**, **2. Chọn Toppings Thêm** và **3. Ghi chú cho Barista** giúp quy trình đặt món siêu nhanh và gọn gàng.
+
+### 🚚 Yêu cầu 10 (v6.7.0): Tự động mở Dòng Thời Gian Theo Dõi Đơn Hàng Real-Time khi khách bấm "Theo Dõi Đơn"
+- **Thực hiện:**
+  1. Khi khách hàng bấm nút **`🚚 Theo Dõi Đơn`** (trên header / mobile menu / nút Đơn hàng), hệ thống tự động kiểm tra mã đơn hàng vừa đặt gần nhất của thiết bị (`boba_my_last_order_id`).
+  2. Mở trực tiếp màn hình **Theo Dõi Đơn Hàng Dòng Thời Gian Thời Gian Thực** (chỉ rõ tiến trình: *⏳ Chờ xác nhận ➔ 🧋 Đang pha chế ➔ 🛵 Đang giao hàng ➔ ✅ Hoàn tất*), kèm bộ đếm thời gian thực và liên kết Zalo/SMS/Call cho chủ quán.
+  3. Bổ sung nút **`🔍 Tra Cứu Đơn Khác`** ở góc trên màn hình giúp khách dễ dàng tra cứu đơn hàng theo Số điện thoại hoặc Mã đơn khi cần.
 
 ---
 

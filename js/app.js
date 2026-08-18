@@ -1519,7 +1519,11 @@ function processCheckout(e) {
     state.orders.unshift(newOrder);
     state.cart = [];
     state.appliedVoucher = null;
+    state.orders.unshift(newOrder);
+    state.cart = [];
+    state.appliedVoucher = null;
     saveStateToStorage();
+    localStorage.setItem('boba_my_last_order_id', newOrder.id);
     updateCartBadge();
     renderProducts();
     closeModal();
@@ -1674,8 +1678,11 @@ function generateOrderTrackerInnerContent(order) {
     const initialElapsedStr = `${String(initialMins).padStart(2, '0')}:${String(initialSecs).padStart(2, '0')}`;
 
     return `
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
-            <h2 class="modal-item-title" style="margin: 0;">Theo Dõi Đơn Hàng #${order.id}</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+            <h2 class="modal-item-title" style="margin: 0; font-size: 1.25rem;">Theo Dõi Đơn Hàng #${order.id}</h2>
+            <button type="button" class="btn-secondary" onclick="openOrderSearchModal()" style="padding: 6px 12px; font-size: 0.8rem;" title="Tra cứu đơn hàng khác theo số điện thoại hoặc mã đơn">
+                <i class="fa-solid fa-magnifying-glass"></i> Tra Cứu Đơn Khác
+            </button>
         </div>
 
         <!-- Real-Time Timer Banner -->
@@ -1709,7 +1716,7 @@ function generateOrderTrackerInnerContent(order) {
                 <div style="display:flex; justify-content:space-between; margin-bottom: 8px; font-size:0.9rem;">
                     <div>
                         <strong>${item.name}</strong> x ${item.quantity}
-                        <br><small style="color:var(--text-muted);">Size ${item.size}, ${item.sugar} đường, ${item.ice} đá ${item.toppings.length ? '+ ' + item.toppings.join(', ') : ''}</small>
+                        <br><small style="color:var(--text-muted);">Size ${item.size}${item.toppings && item.toppings.length ? ' + ' + item.toppings.join(', ') : ''}</small>
                     </div>
                     <strong>${formatCurrency(item.price * item.quantity)}</strong>
                 </div>
@@ -1764,6 +1771,21 @@ function generateOrderTrackerInnerContent(order) {
 // Order Lookup & Tracking Logic for Customers
 async function openOrderLookupModal() {
     await syncCloudOrders();
+
+    // Check if customer has an active or recent order on this device
+    const lastOrderId = state.activeTrackerOrderId || localStorage.getItem('boba_my_last_order_id');
+    if (lastOrderId) {
+        const order = state.orders.find(o => o.id === lastOrderId);
+        if (order) {
+            renderOrderTracker(lastOrderId);
+            return;
+        }
+    }
+
+    openOrderSearchModal();
+}
+
+function openOrderSearchModal() {
     const modalBody = document.getElementById('modal-content-container');
 
     modalBody.innerHTML = `
