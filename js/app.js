@@ -959,37 +959,9 @@ function renderCustomModalContent() {
                 </div>
             </div>
 
-            <!-- Sugar Level -->
-            <div class="custom-group">
-                <div class="custom-group-title">2. Chọn Lượng Đường</div>
-                <div class="options-flex">
-                    ${state.sugarLevels.map(s => `
-                        <button class="opt-pill ${state.selectedSugar === s.id ? 'active' : ''}" 
-                                type="button"
-                                onclick="selectCustomSugar('${s.id}')">
-                            ${s.name}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- Ice Level -->
-            <div class="custom-group">
-                <div class="custom-group-title">3. Chọn Lượng Đá</div>
-                <div class="options-flex">
-                    ${state.iceLevels.map(i => `
-                        <button class="opt-pill ${state.selectedIce === i.id ? 'active' : ''}" 
-                                type="button"
-                                onclick="selectCustomIce('${i.id}')">
-                            ${i.name}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-
             <!-- Toppings Selection -->
             <div class="custom-group">
-                <div class="custom-group-title">4. Chọn Toppings Thêm</div>
+                <div class="custom-group-title">2. Chọn Toppings Thêm</div>
                 <div class="toppings-grid">
                     ${state.toppings.map(t => {
                         const isChecked = state.selectedToppings.includes(t.id);
@@ -1009,7 +981,7 @@ function renderCustomModalContent() {
 
             <!-- Note for Barista -->
             <div class="custom-group">
-                <div class="custom-group-title">5. Ghi chú cho Barista</div>
+                <div class="custom-group-title">3. Ghi chú cho Barista</div>
                 <input type="text" id="custom-note-input" placeholder="Ví dụ: Cho ống hút to, bọc màng ghép..." 
                        class="form-group" style="width:100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);"
                        value="${state.customNote}"

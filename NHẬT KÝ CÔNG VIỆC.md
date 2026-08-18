@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.5.0`  
+> **Phiên bản:** `v5.0.0` ➔ `v6.6.0`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -124,6 +124,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Loại bỏ hình ảnh banner cao 220px (`modal-header-img`) và mô tả dài (`modal-item-desc`) trong cửa sổ tùy chỉnh món.
   2. Đưa tên món, giá gốc và **trình tăng/giảm số lượng trực quan `[- 1 +]`** lên ngay thanh header đầu cửa sổ popup.
   3. Khách hàng không cần phải cuộn/vuốt màn hình xuống để tìm nút tăng giảm số lượng hay các tùy chọn size/đường/đá nữa.
+
+### ✂️ Yêu cầu 9 (v6.6.0): Loại bỏ các tùy chọn Chọn Lượng Đường & Chọn Lượng Đá
+- **Thực hiện:**
+  1. Loại bỏ mục `2. CHỌN LƯỢNG ĐƯỜNG` (100%, 70%, 50%, 30%, 0%).
+  2. Loại bỏ mục `3. CHỌN LƯỢNG ĐÁ` (100%, 70%, 50%, 30%, 0%).
+  3. Rút gọn danh sách tùy chọn chỉ còn **1. Chọn Size**, **2. Chọn Toppings Thêm** và **3. Ghi chú cho Barista** giúp quy trình đặt món siêu nhanh và gọn gàng.
 
 ---
 
