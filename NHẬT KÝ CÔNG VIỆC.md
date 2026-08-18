@@ -187,6 +187,12 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   3. Áp dụng giới hạn khoảng cách (padding-right: 40px) cho tên món/giá gốc để không bao giờ có thể đè đè hay dính vào nút thoát `X` (được định vị tuyệt đối `position: absolute`).
   4. Trải nghiệm thao tác của khách hàng trên các thiết bị di động trở nên mượt mà, không lo bấm nhầm giữa nút tăng số lượng và nút tắt modal.
 
+### ⚡ Yêu cầu 15 (v7.5.0): Chuyển đổi Giỏ hàng thành dạng Bottom Sheet trên Mobile để tối ưu không gian hiển thị
+- **Thực hiện:**
+  1. Trên các thiết bị di động (màn hình nhỏ hơn 576px), chuyển đổi kiểu hiển thị của Giỏ Hàng (`cart-drawer`) từ dạng thanh trượt bên phải (Slide-over Sidebar) chiếm trọn màn hình sang dạng **Bottom Sheet (Bảng trượt từ dưới lên)** với góc bo tròn phía trên cực kỳ hiện đại.
+  2. Thiết lập chiều cao động (`height: auto` và `max-height: 85vh`), giúp giỏ hàng tự co giãn khít theo số lượng món trong giỏ (bỏ hoàn toàn khoảng trắng dư thừa ở giữa khi giỏ chỉ có ít món).
+  3. Khi có nhiều món, phần danh sách món (`cart-drawer-body`) sẽ tự động có thanh cuộn mượt mà mà không đè lên phần tiêu đề và nút Thanh toán.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
