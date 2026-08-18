@@ -5,7 +5,7 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.9.0`  
+> **Phiên bản:** `v5.0.0` ➔ `v7.0.0`  
 > **Cập nhật lần cuối:** 18/08/2026  
 
 ---
@@ -147,6 +147,13 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   1. Loại bỏ việc chờ đợi mạng (`await syncCloudOrders()`) trước khi nạp cửa sổ popup.
   2. Bấm nút **`🧾 Đơn Hàng`** mở cửa sổ popup tra cứu/theo dõi ngay lập tức **(0ms delay)**.
   3. Tự động khôi phục số điện thoại gần nhất (`boba_cust_phone`) và hiển thị các đơn hàng tương ứng kèm trạng thái dòng thời gian pha chế/giao hàng.
+
+### ✂️ Yêu cầu 13 (v7.0.0): Tinh gọn giao diện Dòng Thời Gian Theo Dõi Đơn Hàng
+- **Thực hiện:**
+  1. Loại bỏ mã QR chuyển khoản VietQR trong giao diện xem tiến trình đơn hàng.
+  2. Loại bỏ khối hộp liên hệ Admin (Gửi Zalo / Nhắn SMS / Gọi Hotline Admin).
+  3. Loại bỏ dòng ghi chú đồng bộ ở chân cửa sổ popup.
+  4. Giao diện Theo Dõi Đơn Hàng hiện tại cực kỳ tinh gọn, tập trung 100% vào **Thanh tiến trình pha chế (Dòng thời gian real-time)**, **Bộ đếm giờ trực quan** và **Chi tiết các món trong hóa đơn**.
 
 ---
 

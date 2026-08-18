@@ -1725,44 +1725,6 @@ function generateOrderTrackerInnerContent(order) {
                 <span>${formatCurrency(order.total)}</span>
             </div>
         </div>
-
-        ${order.paymentMethod !== 'Tiền mặt (COD)' ? `
-            <div style="margin-top: 16px;">
-                <h4 style="margin-bottom: 10px; color: var(--primary); font-size: 0.95rem;"><i class="fa-solid fa-qrcode"></i> Thông Tin Chuyển Khoản Mã QR (${order.paymentMethod}):</h4>
-                ${renderVietQRCardHTML(order.total, order.id)}
-            </div>
-        ` : ''}
-
-        <div style="background: linear-gradient(135deg, #e8f8f5 0%, #f0f7ff 100%); border: 1.5px solid #0068ff; padding: 14px; border-radius: var(--radius-md); margin-top: 14px; text-align: center;">
-            <strong style="color: #0068ff; display: block; font-size: 0.95rem; margin-bottom: 4px;">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Đơn hàng đã đồng bộ lên hệ thống Cloud!
-            </strong>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
-                Nhắn tin hoặc gọi điện cho Admin (0889 045 686) để xác nhận đơn siêu tốc:
-            </p>
-            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                <a href="https://zalo.me/0889045686?text=${encodeURIComponent(`🥤 ĐƠN HÀNG MỚI #${order.id}\n👤 Khách: ${order.customerName} (${order.phone})\n📍 ĐC: ${order.address}\n🧋 Món: ${order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}\n💰 Tổng tiền: ${formatCurrency(order.total)}`)}" 
-                   target="_blank" rel="noopener noreferrer" onclick="handleContactClick(event, 'zalo')"
-                   class="btn-primary" style="background: #0068ff; border-color: #0068ff; padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-paper-plane"></i> Gửi Qua Zalo (0889 045 686)
-                </a>
-
-                <a href="sms:0889045686?body=${encodeURIComponent(`Don hang #${order.id} - ${order.customerName} (${order.phone}) - Tong: ${formatCurrency(order.total)}`)}"
-                   onclick="handleContactClick(event, 'sms')"
-                   class="btn-primary" style="background: #e67e22; border-color: #e67e22; padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-comment-sms"></i> Nhắn SMS Xác Nhận
-                </a>
-
-                <button onclick="handleContactClick(event, 'call')" 
-                        class="btn-secondary" style="padding: 8px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-phone" style="color: #27ae60;"></i> Gọi Hotline Admin
-                </button>
-            </div>
-        </div>
-
-        <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 16px;">
-            <i class="fa-solid fa-bolt" style="color:var(--secondary);"></i> Trạng thái đơn hàng được đồng bộ <strong>thời gian thực</strong>. Khi Quản trị viên cập nhật trạng thái, tiến trình sẽ tự động nhảy bước ngay lập tức!
-        </p>
     `;
 }
 
