@@ -1376,9 +1376,8 @@ function openCheckoutModal() {
                             </div>
                         </div>
 
-                        <!-- VietQR API Dynamic Preview Box -->
-                        <div id="qr-preview-box" style="margin-top: 14px;">
-                            ${renderVietQRCardHTML(grandTotal, checkoutOrderCode, state.tableNumber)}
+                        <!-- VietQR API Dynamic Preview Box (Hidden inside checkout modal) -->
+                        <div id="qr-preview-box" style="margin-top: 14px; display: none;">
                         </div>
 
                         <div style="background: var(--light-bg); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 14px;">
@@ -1393,7 +1392,7 @@ function openCheckoutModal() {
                 <div style="margin-top: 24px; text-align: right;">
                     <button type="button" class="btn-secondary" onclick="closeModal()" style="margin-right: 10px;">Hủy Bỏ</button>
                     <button type="submit" id="submit-checkout-btn" class="btn-primary" style="padding: 12px 24px; font-weight: 700;">
-                        <i class="fa-solid fa-paper-plane"></i> Đã Chuyển Khoản & Gửi Đơn
+                        <i class="fa-solid fa-paper-plane"></i> Gửi Đơn & Thanh Toán Chuyển Khoản
                     </button>
                 </div>
             </form>
@@ -1422,11 +1421,11 @@ function selectPaymentOption(type, grandTotal, checkoutOrderCode) {
             labelCod.style.background = 'var(--card-bg)';
         }
         if (qrBox) {
-            qrBox.style.display = 'block';
-            qrBox.innerHTML = renderVietQRCardHTML(grandTotal, checkoutOrderCode, state.tableNumber);
+            qrBox.style.display = 'none';
+            qrBox.innerHTML = '';
         }
         if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Đã Chuyển Khoản & Gửi Đơn';
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi Đơn & Thanh Toán Chuyển Khoản';
         }
     } else {
         if (radioCod) radioCod.checked = true;
@@ -1528,10 +1527,12 @@ function processCheckout(e) {
     // Audio alert chime for new order notification
     playOrderAlertSound();
 
-    alert(`🎉 ĐẶT HÀNG THÀNH CÔNG (${currentTable})!\nMã đơn hàng của bạn: #${newOrder.id}\nĐơn hàng đã xuất hiện lập tức trên màn hình Bếp & Quản trị viên!`);
-
-    // Render Order Tracker view
-    renderOrderTracker(newOrder.id);
+    if (isOnline) {
+        openOnlinePaymentModal(newOrder);
+    } else {
+        alert(`🎉 ĐẶT HÀNG THÀNH CÔNG (${currentTable})!\nMã đơn hàng của bạn: #${newOrder.id}\nĐơn hàng đã được gửi trực tiếp đến Bếp!`);
+        renderOrderTracker(newOrder.id);
+    }
 }
 
 function renderOrderTracker(orderId) {
@@ -3199,4 +3200,32 @@ async function confirmAdminReceivedPayment(orderId) {
         // Push the update to cloud so customer phone gets updated
         await pushOrderToCloud(order);
     }
+}
+
+function openOnlinePaymentModal(order) {
+    const modalBody = document.getElementById('modal-content-container');
+    if (!modalBody) return;
+
+    modalBody.innerHTML = `
+        <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-body" style="padding: 24px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 56px; height: 56px; background: rgba(0, 91, 170, 0.08); color: #005baa; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.6rem;">
+                    <i class="fa-solid fa-credit-card"></i>
+                </div>
+                <h2 class="modal-item-title" style="margin-bottom: 4px;">Thanh Toán Đơn Hàng #${order.id}</h2>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Vui lòng chuyển khoản đúng số tiền và nội dung bên dưới để cửa hàng nhận đơn.</p>
+            </div>
+
+            <!-- VietQR Card -->
+            ${renderVietQRCardHTML(order.total, order.id, order.tableNumber)}
+
+            <div style="margin-top: 24px; text-align: center;">
+                <button type="button" class="btn-primary" style="width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 700; background: #27ae60; border-color: #27ae60; justify-content: center; border-radius: 12px;" onclick="closeModal(); renderOrderTracker('${order.id}');">
+                    <i class="fa-solid fa-circle-check"></i> Tôi Đã Chuyển Khoản Xong
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById('modal-overlay').classList.add('open');
 }

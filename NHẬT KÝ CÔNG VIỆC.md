@@ -206,6 +206,13 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   4. Đơn hàng chuyển khoản sẽ xuất hiện trên màn hình Admin với nhãn trạng thái màu cam: **`VietQR: Chờ đối soát`**, đi kèm nút nổi bật màu xanh lá: **`✔ Xác nhận nhận tiền`**.
   5. Sau khi kiểm tra điện thoại của mình và thấy tiền đã về tài khoản, Admin bấm nút **`Xác nhận nhận tiền`**. Hệ thống sẽ tự động cập nhật trạng thái đơn sang **`Đang pha chế`**, chuyển trạng thái thanh toán thành **`Đã chuyển khoản`**, phát ra âm thanh chuông báo **"Nổ Đơn"** và đồng bộ ngay lập tức để màn hình khách hàng cập nhật tiến trình.
 
+### ⚡ Yêu cầu 18 (v7.8.0): Tách biệt giao diện điền thông tin và bảng thanh toán VietQR chuyển khoản
+- **Thực hiện:**
+  1. Trong Modal Xác Nhận Đặt Hàng ("Hình 2"), chúng tôi ẩn hoàn toàn bảng thông tin chuyển khoản VietQR ("Hình 1") để giao diện điền thông tin gọn gàng nhất.
+  2. Nút hành động thanh toán online được đổi tên thành: **`Gửi Đơn & Thanh Toán Chuyển Khoản`**.
+  3. Khi khách hàng nhấn chọn Chuyển Khoản và bấm nút này, hệ thống sẽ tiến hành gửi đơn lên hệ thống trước. Sau đó, nó sẽ tự động kích hoạt một Modal riêng biệt ("Hình 1") chỉ hiển thị thông tin VietQR để khách hàng tập trung quét mã chuyển khoản.
+  4. Khách hàng sau khi chuyển khoản xong bấm nút **`Tôi Đã Chuyển Khoản Xong`** trên màn hình để đóng modal và theo dõi tiến trình đơn hàng bình thường.
+
 ---
 
 ## 🚀 4. QUÁ TRÌNH TRIỂN KHAI & ĐẨY CODE (GIT DEPLOYMENT)
