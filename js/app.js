@@ -115,7 +115,7 @@ function loadStateFromStorage() {
 
     let storedOrders = null;
     try { storedOrders = JSON.parse(localStorage.getItem('boba_orders')); } catch(e){}
-    state.orders = (Array.isArray(storedOrders) && storedOrders.length > 0) ? storedOrders : DEFAULT_ORDERS;
+    state.orders = (storedOrders !== null && Array.isArray(storedOrders)) ? storedOrders : DEFAULT_ORDERS;
 
     let storedReviews = null;
     try { storedReviews = JSON.parse(localStorage.getItem('boba_reviews')); } catch(e){}
@@ -2657,7 +2657,22 @@ function playOrderAlertSound() {
    CROSS-DEVICE REAL-TIME CLOUD ENGINE (ntfy.sh Instant Push Stream & Sync)
    ========================================================================== */
 
-const NTFY_TOPIC_ENDPOINT = 'https://ntfy.sh/trasua_thuyhang_orders_v600_app';
+const NTFY_TOPIC_ENDPOINTS = [
+    'https://ntfy.sh/trasua_thuyhang_orders_v600_app',
+    'https://ntfy.sh/trasua_thuyhang_orders_v600_backup'
+];
+
+let pendingOrderPushes = [];
+try {
+    const storedPending = localStorage.getItem('boba_pending_cloud_pushes');
+    if (storedPending) pendingOrderPushes = JSON.parse(storedPending);
+} catch (e) {}
+
+function savePendingPushes() {
+    try {
+        localStorage.setItem('boba_pending_cloud_pushes', JSON.stringify(pendingOrderPushes));
+    } catch (e) {}
+}
 
 // Process and store any order arriving from Cloud Stream or Polling
 function processIncomingCloudOrder(cloudOrder) {
@@ -2680,6 +2695,7 @@ function processIncomingCloudOrder(cloudOrder) {
             total: cloudOrder.total || 0,
             paymentMethod: cloudOrder.paymentMethod || 'Tiền mặt',
             paymentType: cloudOrder.paymentType || 'cash',
+            paymentStatus: cloudOrder.paymentStatus || 'chua_thanh_toan',
             status: cloudOrder.status || 'pending',
             createdAt: cloudOrder.createdAt || getFormattedLocalDateTime(),
             note: cloudOrder.note || ''
@@ -2693,8 +2709,9 @@ function processIncomingCloudOrder(cloudOrder) {
         playOrderAlertSound();
         showToast(`🔔 CÓ ĐƠN HÀNG MỚI MÃ QR: #${formattedOrder.id} - ${formattedOrder.customerName} (${formattedOrder.tableNumber})`);
     } else {
-        if (state.orders[localOrderIndex].status !== cloudOrder.status && cloudOrder.status) {
+        if (cloudOrder.status && state.orders[localOrderIndex].status !== cloudOrder.status) {
             state.orders[localOrderIndex].status = cloudOrder.status;
+            if (cloudOrder.paymentStatus) state.orders[localOrderIndex].paymentStatus = cloudOrder.paymentStatus;
             saveStateToStorage();
             refreshRealTimeUI();
         }
@@ -2705,43 +2722,51 @@ function processIncomingCloudOrder(cloudOrder) {
 async function pushOrderToCloud(order) {
     if (!order || !order.id) return;
 
-    try {
-        const payload = {
-            orderId: order.id,
-            id: order.id,
-            customerName: order.customerName || 'Khách hàng',
-            phone: order.phone || '',
-            address: order.address || '',
-            tableNumber: order.tableNumber || 'Mang đi',
-            items: order.items || [],
-            subtotal: order.subtotal || 0,
-            shippingFee: order.shippingFee || 0,
-            discount: order.discount || 0,
-            total: order.total || 0,
-            paymentMethod: order.paymentMethod || 'Tiền mặt',
-            paymentType: order.paymentType || 'cash',
-            status: order.status || 'pending',
-            createdAt: order.createdAt || getFormattedLocalDateTime(),
-            note: order.note || ''
-        };
+    const payload = {
+        orderId: order.id,
+        id: order.id,
+        customerName: order.customerName || 'Khách hàng',
+        phone: order.phone || '',
+        address: order.address || '',
+        tableNumber: order.tableNumber || 'Mang đi',
+        items: order.items || [],
+        subtotal: order.subtotal || 0,
+        shippingFee: order.shippingFee || 0,
+        discount: order.discount || 0,
+        total: order.total || 0,
+        paymentMethod: order.paymentMethod || 'Tiền mặt',
+        paymentType: order.paymentType || 'cash',
+        paymentStatus: order.paymentStatus || 'chua_thanh_toan',
+        status: order.status || 'pending',
+        createdAt: order.createdAt || getFormattedLocalDateTime(),
+        note: order.note || ''
+    };
 
-        const res = await fetch(NTFY_TOPIC_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Title': `DON HANG MOI ${order.tableNumber || 'MANG DI'}`,
-                'Tags': 'coffee,tada',
-                'Priority': 'high'
-            },
-            body: JSON.stringify(payload)
-        });
+    let pushSuccess = false;
 
-        if (res.ok) {
-            console.log('⚡ Order published instantly to ntfy Cloud Stream:', order.id);
+    // Multi-topic parallel publish for maximum reliability
+    for (const endpoint of NTFY_TOPIC_ENDPOINTS) {
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Title': `DON HANG MOI ${order.tableNumber || 'MANG DI'} (#${order.id})`,
+                    'Tags': 'coffee,tada',
+                    'Priority': 'high'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                pushSuccess = true;
+                console.log(`⚡ Order #${order.id} published to ${endpoint}`);
+            }
+        } catch (err) {
+            console.warn(`Cloud order push error for ${endpoint}:`, err);
         }
-    } catch (err) {
-        console.warn('Cloud order push error:', err);
     }
 
+    // BroadcastChannel for same-device cross-tab sync
     try {
         if (window.BroadcastChannel) {
             const bc = new BroadcastChannel('boba_cloud_orders_channel');
@@ -2749,68 +2774,132 @@ async function pushOrderToCloud(order) {
             bc.close();
         }
     } catch (e) {}
+
+    // Offline queue retry mechanism
+    if (!pushSuccess) {
+        if (!pendingOrderPushes.some(p => p.id === order.id)) {
+            pendingOrderPushes.push(order);
+            savePendingPushes();
+        }
+    } else {
+        pendingOrderPushes = pendingOrderPushes.filter(p => p.id !== order.id);
+        savePendingPushes();
+    }
+}
+
+// Flush any pending failed pushes when network restores
+async function flushPendingPushes() {
+    if (pendingOrderPushes.length === 0) return;
+    const toFlush = [...pendingOrderPushes];
+    for (const order of toFlush) {
+        await pushOrderToCloud(order);
+    }
 }
 
 async function pushAllOrdersToCloud() {
-    // Legacy compatibility stub
+    await flushPendingPushes();
 }
 
 // Poll Cloud Engine to Fetch Orders Placed by Customers in the last 24h
 async function syncCloudOrders() {
-    try {
-        const res = await fetch(`${NTFY_TOPIC_ENDPOINT}/json?poll=1&since=24h`);
-        if (!res.ok) return;
+    for (const endpoint of NTFY_TOPIC_ENDPOINTS) {
+        try {
+            const res = await fetch(`${endpoint}/json?poll=1&since=24h`);
+            if (!res.ok) continue;
 
-        const text = await res.text();
-        if (!text || !text.trim()) return;
+            const text = await res.text();
+            if (!text || !text.trim()) continue;
 
-        const lines = text.trim().split('\n').filter(Boolean);
-        lines.forEach(line => {
-            try {
-                const parsedLine = JSON.parse(line);
-                if (parsedLine && parsedLine.message) {
-                    const cloudOrder = JSON.parse(parsedLine.message);
-                    processIncomingCloudOrder(cloudOrder);
-                }
-            } catch(e) {}
-        });
-    } catch (err) {
-        console.warn('Cloud order sync error:', err);
+            const lines = text.trim().split('\n').filter(Boolean);
+            lines.forEach(line => {
+                try {
+                    const parsedLine = JSON.parse(line);
+                    if (parsedLine && parsedLine.message) {
+                        let cloudOrder = parsedLine.message;
+                        if (typeof cloudOrder === 'string') {
+                            try { cloudOrder = JSON.parse(cloudOrder); } catch(e){}
+                        }
+                        if (typeof cloudOrder === 'object' && cloudOrder) {
+                            processIncomingCloudOrder(cloudOrder);
+                        }
+                    }
+                } catch(e) {}
+            });
+        } catch (err) {
+            console.warn('Cloud order sync error:', err);
+        }
     }
 }
 
 // Manual Sync Button for Admin
 async function manualSyncCloudOrders() {
-    showToast('🔄 Đang kiểm tra đơn hàng từ Cloud...');
+    showToast('🔄 Đang kiểm tra & nạp đơn hàng mới nhất từ Cloud...');
+    await flushPendingPushes();
     await syncCloudOrders();
-    showToast('✅ Đã đồng bộ thành công tất cả đơn hàng mã QR!');
+    playOrderAlertSound();
+    showToast('✅ Đã đồng bộ thành công tất cả đơn hàng mã QR & phát âm thanh!');
+}
+
+let activeEventSources = [];
+
+function connectEventSource(endpoint) {
+    try {
+        const es = new EventSource(`${endpoint}/json`);
+        es.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && data.message) {
+                    let cloudOrder = data.message;
+                    if (typeof cloudOrder === 'string') {
+                        try { cloudOrder = JSON.parse(cloudOrder); } catch(e){}
+                    }
+                    if (typeof cloudOrder === 'object' && cloudOrder) {
+                        processIncomingCloudOrder(cloudOrder);
+                    }
+                }
+            } catch(e) {}
+        };
+        es.onerror = () => {
+            try { es.close(); } catch(e){}
+            setTimeout(() => connectEventSource(endpoint), 5000);
+        };
+        activeEventSources.push(es);
+    } catch(e) {}
 }
 
 // Start background Cloud Stream (SSE) & polling loop
 function startCloudOrderSync() {
-    // 1. Initial poll for last 24h orders
+    // 1. Initial poll & flush pending pushes
     syncCloudOrders();
+    flushPendingPushes();
 
-    // 2. Real-time EventSource (Server-Sent Events) Stream (< 100ms instant delivery)
+    // 2. Real-time EventSource Stream on all endpoints
     if (window.EventSource) {
-        try {
-            const es = new EventSource(`${NTFY_TOPIC_ENDPOINT}/json`);
-            es.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data && data.message) {
-                        const cloudOrder = JSON.parse(data.message);
-                        processIncomingCloudOrder(cloudOrder);
-                    }
-                } catch(e) {}
-            };
-        } catch(e) {}
+        NTFY_TOPIC_ENDPOINTS.forEach(endpoint => {
+            connectEventSource(endpoint);
+        });
     }
 
-    // 3. Fallback polling every 5 seconds
-    setInterval(syncCloudOrders, 5000);
+    // 3. Fallback polling every 4 seconds
+    setInterval(() => {
+        syncCloudOrders();
+        flushPendingPushes();
+    }, 4000);
 
-    // 4. Same-device BroadcastChannel
+    // 4. Lifecycle listeners: auto re-sync when tab becomes active or online
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            syncCloudOrders();
+            flushPendingPushes();
+        }
+    });
+
+    window.addEventListener('online', () => {
+        syncCloudOrders();
+        flushPendingPushes();
+    });
+
+    // 5. BroadcastChannel listener for same-device cross-tab sync
     if (window.BroadcastChannel) {
         try {
             const bc = new BroadcastChannel('boba_cloud_orders_channel');

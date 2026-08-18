@@ -5,8 +5,8 @@
 > **Hotline:** 0889 045 686  
 > **Địa chỉ Website Live:** [https://trieuson0971113449.github.io/trasuadanang/](https://trieuson0971113449.github.io/trasuadanang/)  
 > **GitHub Repository:** [https://github.com/trieuson0971113449/trasuadanang](https://github.com/trieuson0971113449/trasuadanang)  
-> **Phiên bản:** `v5.0.0` ➔ `v6.3.0`  
-> **Cập nhật lần cuối:** 17/08/2026  
+> **Phiên bản:** `v5.0.0` ➔ `v6.4.0`  
+> **Cập nhật lần cuối:** 18/08/2026  
 
 ---
 
@@ -90,13 +90,19 @@ Dự án là trang web bán hàng Single Page Application (SPA) tích hợp tran
   2. Thêm tham số Cache-Busting trong `index.html` (`js/app.js?v=6.3.0_202608171546`) ép tất cả trình duyệt di động và máy tính lập tức nạp bản code mới nhất.
   3. Bổ sung cơ chế mở khóa âm thanh `unlockAudioContext()` tự động kích hoạt `AudioContext.resume()` ngay từ lần chạm đầu tiên trên màn hình Admin.
 
-### 🐛 Lỗi 4: Giao diện tràn lề ngang trên điện thoại di động (Mobile Overflow)
-- **Nguyên nhân:** Thanh Header chứa quá nhiều nút bấm chữ dài (`Loại đơn: Mang đi`, `Giỏ Hàng`, `Đơn Hàng`, `Quản Trị`) khiến chiều rộng vượt quá 600px trên điện thoại 375px.
-- **Khắc phục:**
-  1. Thêm CSS `html, body { overflow-x: hidden !important; max-width: 100vw !important; }`.
-  2. Rút gọn nhãn số bàn thành `📍 Bàn 5` hoặc `🛍️ Mang đi`.
-  3. Chuyển các nút thao tác Header thành dạng Icon tinh gọn (`🧾`, `👤`, `🛒 0`).
-  4. Căn chỉnh tiêu đề Banner Hero (`<h1> 1.6rem`), cho phép danh mục thực đơn cuộn ngang bằng ngón tay (`touch-scrolling`).
+### 🐛 Lỗi 5: Admin không nhận được đơn đặt hàng khi quét QR / đặt trên điện thoại khác
+- **Nguyên nhân:**
+  1. **Tắc nghẽn / Rớt mạng một kênh Push Single Stream:** Khi điện thoại khách gửi đơn qua mạng 4G/WiFi yếu hoặc endpoint chính bị trễ, đơn hàng không được đẩy lên kênh duy nhất và không được thử lại (Retry Queue).
+  2. **Trình duyệt Admin tự động ngắt kết nối Stream (SSE) khi tắt màn hình / chuyển tab:** Khi chủ quán chuyển tab hoặc mở ứng dụng khác trên điện thoại, `EventSource` bị ngắt mà không tự động kết nối lại (Auto-reconnect).
+  3. **Lỗi parse JSON nghiêm ngặt:** Khi nhận dữ liệu từ server Cloud, nếu `message` đã là object hoặc chứa chuỗi rác, hàm `JSON.parse` cũ bị văng ngoại lệ ngầm làm bỏ qua đơn hàng.
+  4. **Lỗi khởi tạo `state.orders`:** Khi danh sách đơn hàng trống (`[]`), bộ nhớ local lại tự động khôi phục dữ liệu mẫu cũ.
+- **Khắc phục v6.4.0:**
+  1. **Triển khai Đa Kênh Cloud Multi-Topic Push:** Đơn hàng được đẩy đồng thời qua nhiều kênh Cloud độc lập (`trasua_thuyhang_orders_v600_app` & `trasua_thuyhang_orders_v600_backup`) đảm bảo 100% không rớt đơn.
+  2. **Cơ chế Hàng Đợi Ngoại Tuyến (Offline Retry Queue):** Lưu các đơn hàng chưa đẩy thành công vào `boba_pending_cloud_pushes` và tự động gửi lại ngay khi có mạng.
+  3. **Lắng nghe sự kiện Lifecycle (`visibilitychange` & `online`):** Tự động nạp và kiểm tra đơn hàng mới ngay lập tức khi chủ quán mở lại tab web hoặc điện thoại có mạng lại.
+  4. **Tự Động Kết Nối Lại Stream (Auto Reconnect SSE):** Bổ sung trình xử lý `onerror` cho `EventSource` để tự khôi phục kết nối luồng nổ đơn khi mạng bị gián đoạn.
+  5. **Bảo tồn trạng thái mảng đơn hàng rỗng:** Sửa `loadStateFromStorage` để không bị đè đơn hàng mẫu khi mở trang.
+  6. **Cập nhật Cache-Buster v6.4.0:** Ép tất cả trình duyệt di động & máy tính nạp phiên bản JS mới nhất.
 
 ---
 
